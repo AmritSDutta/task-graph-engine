@@ -95,26 +95,16 @@ async def select_models(task: str, top_n: int = 5) -> List[str]:
 
 
 async def get_cheapest_model(task: str) -> str:
-    """Get the single cheapest model for a task.
-
-    Args:
-        task: The task description or question
-
-    Returns:
-        Name of the cheapest model that can handle the task
+    """
+    Get the single cheapest model for a task.
     """
     models = await select_models(task, top_n=1)
     return models[0]
 
 
 def get_model_details(model: str) -> dict:
-    """Get detailed information about a model.
-
-    Args:
-        model: Model name
-
-    Returns:
-        Dict with capabilities, cost, etc.
+    """
+    Get detailed information about a model.
     """
     return {
         "capabilities": MODEL_CAPABILITIES.get(model, set()),

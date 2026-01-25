@@ -12,6 +12,8 @@ Capability = Literal[
     "coding",        # Code writing, programming, development
     "vision",        # Image understanding
     "long",          # Long context window
+    "synthesizing",  # synthesizing
+    "summarizing",  # synthesizing
 ]
 
 # Model capability matrix
@@ -20,23 +22,23 @@ MODEL_CAPABILITIES: dict[str, set[Capability]] = {
     "gpt-4o": {"reasoning", "tools", "fast", "vision", "long", "informational", "coding"},
     "gpt-4o-mini": {"reasoning", "tools", "fast", "cheap", "informational", "coding"},
     "gpt-5-mini": {"reasoning", "tools", "fast", "cheap", "informational", "coding"},
-    "gpt-5-nano": {"tools", "fast", "cheap", "informational"},
+    "gpt-5-nano": {"tools", "fast", "cheap", "informational", "summarizing", "synthesizing"},
 
     # Google models (2.5+)
     "gemini-2.5-flash": {"reasoning", "tools", "fast", "cheap", "vision", "long", "informational", "coding"},
-    "gemini-2.5-flash-lite": {"reasoning", "tools", "fast", "cheap", "vision", "informational"},
+    "gemini-2.5-flash-lite": {"reasoning", "tools", "fast", "cheap", "informational", "summarizing", "synthesizing"},
     "gemini-2.5-pro": {"reasoning", "tools", "vision", "long", "informational", "coding"},
-    "gemini-3-flash-preview:cloud": {"reasoning", "tools", "fast", "cheap", "vision", "long", "informational"},
 
     # Groq models
     "qwen/qwen-2.5-72b-instruct": {"reasoning", "tools", "fast", "cheap", "informational"},
     "qwen/qwen3-32b": {"reasoning", "tools", "fast", "cheap", "informational"},
-    "qwen3-coder:480b-cloud": {"reasoning", "tools", "fast", "cheap", "informational", "coding"},
 
-    # Cloud models
-    "gemma3:27b-cloud": {"reasoning", "tools", "fast", "cheap", "informational"},
+    # ollama Cloud models
+    "gemini-3-flash-preview:cloud": {"reasoning", "tools", "fast", "cheap", "vision", "long", "informational"},
+    "qwen3-coder:480b-cloud": {"reasoning", "tools", "fast", "cheap", "informational", "coding"},
+    "gemma3:27b-cloud": {"reasoning", "tools", "fast", "cheap", "informational", "summarizing", "synthesizing"},
     "glm-4.6:cloud": {"reasoning", "tools", "fast", "long", "informational", "coding"},
-    "gpt-oss:20b-cloud": {"reasoning", "tools", "fast", "cheap", "informational"},
+    "gpt-oss:20b-cloud": {"reasoning", "tools", "fast", "cheap", "informational", "summarizing", "synthesizing"},
 }
 
 # Preferred models for coding tasks (in priority order)
@@ -60,7 +62,7 @@ MODEL_COST: dict[str, float] = {
     "gemini-2.5-flash": 0.08,
     "gemini-2.5-flash-lite": 0.05,
     "gemini-2.5-pro": 2.0,
-    "gemini-3-flash-preview:cloud": 0.07,
+    "gemini-3-flash-preview:cloud": 0.05,
 
     # Groq (very cheap)
     "qwen/qwen-2.5-72b-instruct": 0.05,

@@ -1,4 +1,5 @@
-"""LLM Factory using registry + resolver pattern.
+"""
+LLM Factory using registry + resolver pattern.
 
 Centralizes model creation with clean separation of concerns:
 - Registry: Provider → LangChain constructor mapping
@@ -25,20 +26,14 @@ LLM_REGISTRY: dict[str, Type[BaseChatModel]] = {
 
 
 def resolve_provider(model: str) -> str:
-    """Pure resolver: Extract provider from model name suffix/prefix.
+    """
+    Pure resolver: Extract provider from model name suffix/prefix.
 
     Suffix check happens before prefix check:
     - Models containing :cloud → Ollama (local deployment)
     - Otherwise, uses prefix-based provider resolution
 
-    Args:
-        model: Model name (e.g., "gpt-4o", "gemini-2.5-flash-lite", "gemma3:27b-cloud")
 
-    Returns:
-        Provider key for LLM_REGISTRY
-
-    Raises:
-        ValueError: If model cannot be resolved to a provider
     """
     # Check suffix first (cloud models go to Ollama)
     if "cloud" in model:
@@ -68,19 +63,12 @@ def resolve_provider(model: str) -> str:
 
 
 def create_llm(model: str, **kwargs) -> BaseChatModel:
-    """Factory: Create LangChain model instance.use create_llm
-
-    Args:
-        model: Model name (e.g., "gpt-4o", "gemini-2.5-flash-lite")
-        **kwargs: Additional arguments passed to model constructor
-                  (temperature, max_tokens, etc.)
-
-    Returns:
-        LangChain BaseChatModel instance
+    """
+    Factory: Create LangChain model instance.use create_llm
 
     Example:
-        >>> model = create_llm("gpt-4o", temperature=0.5)
-        >>> response = model.invoke("Hello")
+        model = create_llm("gpt-4o", temperature=0.5)
+        response = model.invoke("Hello")
     """
     provider = resolve_provider(model)
     constructor = LLM_REGISTRY[provider]
@@ -88,14 +76,7 @@ def create_llm(model: str, **kwargs) -> BaseChatModel:
 
 
 def get_model_provider(model_name: str) -> str:
-    """Get provider name for a given model.
-
-    Convenience wrapper around resolve_provider().
-
-    Args:
-        model_name: Model name
-
-    Returns:
-        Provider string (e.g., "openai", "google")
+    """
+    Get provider name for a given model.
     """
     return resolve_provider(model_name)

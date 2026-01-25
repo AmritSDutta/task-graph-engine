@@ -8,11 +8,11 @@ from langgraph.runtime import Runtime
 from langgraph.types import Command, Send
 from pydantic import BaseModel
 
-from task_agent.utils.state import Context
+from task_agent.data_objs.task_details import TODOs, TODO_details, TODOs_Output
 from task_agent.llms.llm_model_factory.llm_factory import create_llm
 from task_agent.llms.simple_llm_selector import get_cheapest_model
+from task_agent.utils.state import Context
 from task_agent.utils.state import TaskState
-from task_agent.data_objs.task_details import TODOs, TODO_details, TODOs_Output
 
 
 # Simple schema for LLM output
@@ -52,7 +52,7 @@ async def entry_node(state: TaskState):
     if "todos" not in state or not state.get("todos"):
         cfg = get_config()
         thread_id = cfg.get("configurable", {}).get("thread_id")
-        logging.info(f"thread_id: {thread_id}")
+        logging.info(f"[{thread_id}] Entry node - Initializing todos")
         todo_to_be_updated = TODOs(todo_list=[])
         todo_to_be_updated.thread_id = thread_id
         state["todos"] = todo_to_be_updated
@@ -70,21 +70,22 @@ async def should_continue(state: TaskState):
 
 
 async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Command:
+    cfg = get_config()
+    thread_id = cfg.get("configurable", {}).get("thread_id")
+
     user_message: list[BaseMessage] = state.get("messages")
     ctm = convert_to_messages(user_message)
     gbt = get_buffer_string(ctm, human_prefix="", ai_prefix="").strip()
-    logging.info(gbt)
+    logging.debug(f'[{thread_id}]raw request received: {gbt}')
     if not user_message:
         logging.info(ctm)
         return Command(update={"retry_count": state["retry_count"], "messages": state["messages"]}, goto=END)
 
-    cheapest = await get_cheapest_model(gbt)
-    logging.info(f"Cheapest model: {cheapest}")
+    system_prompt = """
+    You are a task planning assistant. Analyze the user's task 
+    and generate a structured TODO list.
 
-    # System prompt for structured TODO generation
-    system_prompt = """You are a task planning assistant. Analyze the user's task and generate a structured TODO list.
-
-        Your output must be JSON with this structure:
+    Your output must be JSON with this structure:
         {
           "todos": [
             {
@@ -100,26 +101,26 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
         
         Generate 3-7 meaningful TODO items based on the user's task.
     """
-
-    llm = create_llm(cheapest, temperature=0.0)
-    structured_llm = llm.with_structured_output(SimpleTODOList)
-
-    # Combine system prompt with user input
     prompt = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": gbt}
     ]
+
+    cheapest = await get_cheapest_model(str(prompt))
+    logging.info(f"[Planner] Model: {cheapest}")
+
+    llm = create_llm(cheapest, temperature=0.0)
+    structured_llm = llm.with_structured_output(SimpleTODOList)
 
     simple_todos = await structured_llm.ainvoke(prompt)
 
     # Convert simple output to full TODOs structure
     todos_response = convert_to_todos(simple_todos)
 
-    logging.info(f"Todos response: {todos_response}")
-
+    logging.info(f"[PLANNER] Total TODOs: {len(todos_response.todo_list)}")
     return Command(update={
         "task": gbt[:100],
-        "messages": AIMessage(f"Generated {len(todos_response.todo_list)} TODOs, Todos response: {todos_response}"),
+        "messages": AIMessage(f"Generated {len(todos_response.todo_list)} TODOs for task: {gbt[:100]}"),
         "todos": todos_response,
         "ended_once": True
     }, goto='END')
@@ -131,11 +132,11 @@ async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
        Worker: evaluate a single decision_id and append DecisionOutput.
        Expects state["decision_id"] injected via Send().
     """
-    cfg = get_config()
-    _thread_id = cfg.get("configurable", {}).get("thread_id", '')
+    import time
+    start = time.time()
 
     todo: TODO_details = state["todo"]
-    logging.info(f'[Sub-task] {todo.todo_name} executing ... ')
+    logging.info(f"[{todo.todo_id}] STARTING: {todo.todo_name}")
 
     # System prompt for structured
     system_prompt = """
@@ -146,7 +147,7 @@ async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
     todo_formated = f"ID: {todo.todo_id}\nTitle: {todo.todo_name}\nDescription: {todo.todo_description}"
 
     cheapest = await get_cheapest_model(system_prompt)
-    logging.info(f"Cheapest model: {cheapest}")
+    logging.info(f"[{todo.todo_id}] Model: {cheapest}")
 
     llm = create_llm(cheapest, temperature=0.0)
     # Combine system prompt with user input
@@ -155,9 +156,18 @@ async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
         {"role": "user", "content": todo_formated}
     ]
     response: AIMessage = await llm.ainvoke(prompt)
-    logging.info(f'[todo] {todo}: {response.content}, {response.response_metadata}')
+
+    duration = time.time() - start
+    logging.info({
+        "event": "subtask_completed",
+        "todo_id": todo.todo_id,
+        "todo_name": todo.todo_name,
+        "model": cheapest,
+        "duration": duration,
+        "tokens": response.response_metadata.get("token_usage")
+    })
     return {
-        "messages": AIMessage(f'Evaluated needs : {todo}'),
+        "messages": AIMessage(f'[{todo.todo_id}] Evaluated: {todo.todo_name}'),
         "completed_todos": [response.content]
     }
 
@@ -176,18 +186,22 @@ async def assign_workers(state: TaskState, runtime: Runtime[Context]):
 
 
 async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Command:
+    import time
+    start = time.time()
     issue_summary: str = state['task']
     completed_todos: list[str] = state['completed_todos']
     logging.info(f"Combiner received {len(completed_todos)} completed todos")
-    # System prompt for structured TODO generation
     system_prompt = """
         You are a helpful synthesizer assistant. 
         Generate a synthesized response.
         """
-    formatted_todos = "\n".join(f"{i + 1}. {todo}" for i, todo in enumerate(completed_todos))
+    formatted_todos = "\n".join(
+        f"{i + 1}. {todo[:500]}..." if len(todo) > 500 else f"{i + 1}. {todo}"
+        for i, todo in enumerate(completed_todos)
+    )
 
     cheapest = await get_cheapest_model(system_prompt)
-    logging.info(f"Cheapest model: {cheapest}")
+    logging.info(f"[COMBINER] Model: {cheapest}")
 
     llm = create_llm(cheapest, temperature=0.0)
     # Combine system prompt with user input
@@ -200,6 +214,13 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
 
     if not final_output:
         return Command(update={"messages": state["messages"]}, goto=END)
+
+    duration = time.time() - start
+    logging.info("=" * 60)
+    logging.info(f"EXECUTION SUMMARY: {issue_summary[:100]}")
+    logging.info(f"Total TODOs: {len(completed_todos)}")
+    logging.info(f"Combiner execution time: {duration:.2f}s")
+    logging.info("=" * 60)
 
     return Command(update={
         "ended_once": True,

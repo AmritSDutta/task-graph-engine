@@ -10,7 +10,6 @@ from task_agent.utils.state import Context, TaskState
 
 setup_logging()
 
-
 # this name is mentioned in langgraph.json
 graph = (
     StateGraph(TaskState, context_schema=Context)
