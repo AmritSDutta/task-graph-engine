@@ -2,6 +2,7 @@ import logging
 from typing import List
 
 from langchain_core.messages import BaseMessage, convert_to_messages, get_buffer_string, AIMessage
+from langgraph.config import get_config
 from langgraph.constants import END
 from langgraph.runtime import Runtime
 from langgraph.types import Command
@@ -37,7 +38,9 @@ def convert_to_todos(simple_list: SimpleTODOList) -> TODOs:
         )
         todo_details_list.append(todo_detail)
 
-    return TODOs(todo_list=todo_details_list)
+    cfg = get_config()
+    thread_id = cfg.get("configurable", {}).get("thread_id")
+    return TODOs(todo_list=todo_details_list, thread_id=thread_id)
 
 
 async def entry_node(state: TaskState):
@@ -47,7 +50,13 @@ async def entry_node(state: TaskState):
 
     # Initialize empty todos if not present
     if "todos" not in state or not state.get("todos"):
-        state["todos"] = TODOs(todo_list=[])
+        cfg = get_config()
+        thread_id = cfg.get("configurable", {}).get("thread_id")
+        logging.info(f"thread_id: {thread_id}")
+        todo_to_be_updated = TODOs(todo_list=[])
+        todo_to_be_updated.thread_id = thread_id
+        state["todos"] = todo_to_be_updated
+
 
     return state
 
@@ -102,7 +111,7 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
         {"role": "user", "content": gbt}
     ]
 
-    simple_todos: SimpleTODOList = await structured_llm.ainvoke(prompt)
+    simple_todos = await structured_llm.ainvoke(prompt)
 
     # Convert simple output to full TODOs structure
     todos_response = convert_to_todos(simple_todos)
@@ -113,4 +122,5 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
         "issue": gbt[:100],
         "messages": AIMessage(f"Generated {len(todos_response.todo_list)} TODOs, Todos response: {todos_response}"),
         "todos": todos_response,
+        "ended_once": True
     }, goto='END')

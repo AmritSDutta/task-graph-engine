@@ -18,3 +18,4 @@ class TODO_details(BaseModel):
 
 class TODOs(BaseModel):
     todo_list: List[TODO_details]
+    thread_id: str | None = None

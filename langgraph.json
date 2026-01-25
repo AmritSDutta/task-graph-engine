@@ -5,5 +5,10 @@
     "agent": "./src/task_agent/graph.py:graph"
   },
   "env": ".env",
-  "image_distro": "wolfi"
+  "image_distro": "wolfi",
+  "http": {
+    "configurable_headers": {
+      "includes": ["x-thread-id"]
+    }
+  }
 }
