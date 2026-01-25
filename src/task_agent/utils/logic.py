@@ -112,7 +112,14 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
     llm = create_llm(cheapest, temperature=0.0)
     structured_llm = llm.with_structured_output(SimpleTODOList)
 
-    simple_todos = await structured_llm.ainvoke(prompt)
+    try:
+        simple_todos = await structured_llm.ainvoke(prompt)
+    except Exception as e:
+        logging.error(f"[Planner] Error calling LLM: {e}")
+        return Command(update={
+            "messages": AIMessage(f"Error during planning: {e}"),
+            "ended_once": True
+        }, goto='END')
 
     # Convert simple output to full TODOs structure
     todos_response = convert_to_todos(simple_todos)
@@ -155,7 +162,14 @@ async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": todo_formated}
     ]
-    response: AIMessage = await llm.ainvoke(prompt)
+    try:
+        response: AIMessage = await llm.ainvoke(prompt)
+    except Exception as e:
+        logging.error(f"[{todo.todo_id}] Error calling LLM: {e}")
+        return {
+            "messages": AIMessage(f"[{todo.todo_id}] Error evaluating: {todo.todo_name} - {e}"),
+            "completed_todos": [f"Error processing {todo.todo_id}: {e}"]
+        }
 
     duration = time.time() - start
     logging.info({
@@ -209,12 +223,19 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": formatted_todos}
     ]
-    response: AIMessage = await llm.ainvoke(prompt)
-    final_output: str = response.content
+    final_output: str | None = None
+    try:
+        response: AIMessage = await llm.ainvoke(prompt)
+        final_output = response.content
+    except Exception as e:
+        logging.error(f"[COMBINER] Error calling LLM: {e}")
+        return Command(update={
+            "messages": AIMessage(f"Error during final report generation: {e}"),
+            "ended_once": True
+        }, goto=END)
 
     if not final_output:
         return Command(update={"messages": state["messages"]}, goto=END)
-
     duration = time.time() - start
     logging.info("=" * 60)
     logging.info(f"EXECUTION SUMMARY: {issue_summary[:100]}")
