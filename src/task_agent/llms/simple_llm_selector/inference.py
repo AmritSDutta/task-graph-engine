@@ -11,7 +11,7 @@ from ..llm_model_factory.llm_factory import create_llm
 INFERENCE_MODEL = "qwen/qwen3-32b"
 
 
-def infer_capabilities(task: str) -> set[Capability]:
+async def infer_capabilities(task: str) -> set[Capability]:
     """Infer required capabilities from task using an LLM.
 
     This uses a Groq model (fast & cheap) to analyze the task and determine
@@ -57,7 +57,7 @@ Task: "{task}"
 Response:"""
 
     try:
-        response = llm.invoke(prompt)
+        response = await llm.ainvoke(prompt)
         content = response.content.strip()
 
         # Parse the response - look for capability names

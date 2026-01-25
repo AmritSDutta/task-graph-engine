@@ -13,7 +13,7 @@ from .inference import infer_capabilities
 from .models import MODEL_CAPABILITIES, MODEL_COST, CODING_MODEL_PRIORITY, Capability
 
 
-def select_models(task: str, top_n: int = 5) -> List[str]:
+async def select_models(task: str, top_n: int = 5) -> List[str]:
     """Select top N models for a given task.
 
     Selection process:
@@ -31,13 +31,13 @@ def select_models(task: str, top_n: int = 5) -> List[str]:
         List of model names, sorted appropriately
 
     Example:
-        >>> models = select_models("Write a Python function")
+        >>> models = await select_models("Write a Python function")
         >>> print(models)
         ['qwen3-coder:480b-cloud', 'glm-4.6:cloud', ...]
     """
     # Step 1: Infer capabilities from task
     print(f"Analyzing task: {task}")
-    required_capabilities = infer_capabilities(task)
+    required_capabilities = await infer_capabilities(task)
     print(f"Required capabilities: {sorted(required_capabilities)}")
     print()
 
@@ -96,7 +96,7 @@ def select_models(task: str, top_n: int = 5) -> List[str]:
     return top_models
 
 
-def get_cheapest_model(task: str) -> str:
+async def get_cheapest_model(task: str) -> str:
     """Get the single cheapest model for a task.
 
     Args:
@@ -105,7 +105,7 @@ def get_cheapest_model(task: str) -> str:
     Returns:
         Name of the cheapest model that can handle the task
     """
-    models = select_models(task, top_n=1)
+    models = await select_models(task, top_n=1)
     return models[0]
 
 

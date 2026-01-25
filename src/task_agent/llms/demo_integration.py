@@ -22,7 +22,41 @@ if __name__ == "__main__":
     print()
 
     # Demo 1: Select top models for a task
-    task = "Who invented calculus?"
+    task = """
+    You are a senior software architect and planner.
+
+Your task is to convert the following requirement into a clear, executable coding plan.
+
+Instructions:
+- Do NOT write code.
+- Produce a structured TODO list.
+- Break work into logical phases.
+- Each TODO item must be atomic and testable.
+- Explicitly list dependencies between steps.
+- Highlight risk areas or design decisions.
+- Assume production-quality standards.
+
+Context:
+<insert project context here>
+
+Task:
+<insert coding task or feature request here>
+
+Output Format:
+1. High-level objective
+2. Assumptions & constraints
+3. Architecture / design overview
+4. TODO list (numbered, ordered)
+   - [ ] Task
+     - Description
+     - Inputs
+     - Outputs
+     - Dependencies
+5. Validation & testing plan
+6. Open questions / risks
+
+tasking building a small python function to check fibonacci numbers.
+    """
 
     models = select_models(task, top_n=5)
 
