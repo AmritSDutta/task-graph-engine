@@ -5,7 +5,7 @@ from langchain_core.messages import BaseMessage, convert_to_messages, get_buffer
 from langgraph.config import get_config
 from langgraph.constants import END
 from langgraph.runtime import Runtime
-from langgraph.types import Command
+from langgraph.types import Command, Send
 from pydantic import BaseModel
 
 from task_agent.utils.state import Context
@@ -56,7 +56,6 @@ async def entry_node(state: TaskState):
         todo_to_be_updated = TODOs(todo_list=[])
         todo_to_be_updated.thread_id = thread_id
         state["todos"] = todo_to_be_updated
-
 
     return state
 
@@ -119,8 +118,91 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
     logging.info(f"Todos response: {todos_response}")
 
     return Command(update={
-        "issue": gbt[:100],
+        "task": gbt[:100],
         "messages": AIMessage(f"Generated {len(todos_response.todo_list)} TODOs, Todos response: {todos_response}"),
         "todos": todos_response,
         "ended_once": True
     }, goto='END')
+
+
+async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
+    """
+       This will be called for each decision type needed.
+       Worker: evaluate a single decision_id and append DecisionOutput.
+       Expects state["decision_id"] injected via Send().
+    """
+    cfg = get_config()
+    _thread_id = cfg.get("configurable", {}).get("thread_id", '')
+
+    todo: TODO_details = state["todo"]
+    logging.info(f'[Sub-task] {todo.todo_name} executing ... ')
+
+    # System prompt for structured
+    system_prompt = """
+    You are a helpful assistant. 
+    Analyze the user's task and generate a appropriate response.
+    """
+
+    todo_formated = f"ID: {todo.todo_id}\nTitle: {todo.todo_name}\nDescription: {todo.todo_description}"
+
+    cheapest = await get_cheapest_model(system_prompt)
+    logging.info(f"Cheapest model: {cheapest}")
+
+    llm = create_llm(cheapest, temperature=0.0)
+    # Combine system prompt with user input
+    prompt = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": todo_formated}
+    ]
+    response: AIMessage = await llm.ainvoke(prompt)
+    logging.info(f'[todo] {todo}: {response.content}, {response.response_metadata}')
+    return {
+        "messages": AIMessage(f'Evaluated needs : {todo}'),
+        "completed_todos": [response.content]
+    }
+
+
+async def assign_workers(state: TaskState, runtime: Runtime[Context]):
+    """Assign a worker to each type of decision"""
+    todos = state["todos"].todo_list
+
+    if not todos:
+        return "__end__"
+
+    return [
+        Send("subtask", {**state, "todo": td})
+        for td in todos
+    ]
+
+
+async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Command:
+    issue_summary: str = state['task']
+    completed_todos: list[str] = state['completed_todos']
+    logging.info(f"Combiner received {len(completed_todos)} completed todos")
+    # System prompt for structured TODO generation
+    system_prompt = """
+        You are a helpful synthesizer assistant. 
+        Generate a synthesized response.
+        """
+    formatted_todos = "\n".join(f"{i + 1}. {todo}" for i, todo in enumerate(completed_todos))
+
+    cheapest = await get_cheapest_model(system_prompt)
+    logging.info(f"Cheapest model: {cheapest}")
+
+    llm = create_llm(cheapest, temperature=0.0)
+    # Combine system prompt with user input
+    prompt = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": formatted_todos}
+    ]
+    response: AIMessage = await llm.ainvoke(prompt)
+    final_output: str = response.content
+
+    if not final_output:
+        return Command(update={"messages": state["messages"]}, goto=END)
+
+    return Command(update={
+        "ended_once": True,
+        "final_report": final_output,
+        "messages": response
+    }, goto=END)
