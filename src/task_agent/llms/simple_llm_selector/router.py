@@ -6,14 +6,14 @@ Flow:
 3. For coding: use priority order, otherwise sort by cost
 4. Return top 5 candidates
 """
-
+import logging
 from typing import List
 
 from .inference import infer_capabilities
 from .models import MODEL_CAPABILITIES, MODEL_COST, CODING_MODEL_PRIORITY, Capability
 
 
-def select_models(task: str, top_n: int = 5) -> List[str]:
+async def select_models(task: str, top_n: int = 5) -> List[str]:
     """Select top N models for a given task.
 
     Selection process:
@@ -31,15 +31,14 @@ def select_models(task: str, top_n: int = 5) -> List[str]:
         List of model names, sorted appropriately
 
     Example:
-        >>> models = select_models("Write a Python function")
-        >>> print(models)
+        models = await select_models("Write a Python function")
+        logging.info(models)
         ['qwen3-coder:480b-cloud', 'glm-4.6:cloud', ...]
     """
     # Step 1: Infer capabilities from task
-    print(f"Analyzing task: {task}")
-    required_capabilities = infer_capabilities(task)
-    print(f"Required capabilities: {sorted(required_capabilities)}")
-    print()
+    logging.info(f"Analyzing task: {task}")
+    required_capabilities = await infer_capabilities(task)
+    logging.info(f"Required capabilities: {sorted(required_capabilities)}")
 
     # Step 2: Filter models by capabilities
     candidates = []
@@ -55,7 +54,7 @@ def select_models(task: str, top_n: int = 5) -> List[str]:
     # Step 3: Sort based on capability type
     if "coding" in required_capabilities:
         # Use priority order for coding models
-        print("Coding task detected - using priority model order")
+        logging.info("Coding task detected - using priority model order")
 
         # Separate priority models from others
         priority_models = []
@@ -85,18 +84,17 @@ def select_models(task: str, top_n: int = 5) -> List[str]:
     # Step 4: Return top N model names
     top_models = [model for model, _ in candidates[:top_n]]
 
-    print(f"Found {len(candidates)} matching models, returning top {len(top_models)}:")
+    logging.info(f"Found {len(candidates)} matching models, returning top {len(top_models)}:")
     for i, (model, cost) in enumerate(candidates[:top_n], 1):
         caps = MODEL_CAPABILITIES[model]
         # Check if this is a priority coding model
         priority_note = " [PRIORITY]" if model in CODING_MODEL_PRIORITY else ""
-        print(f"  {i}. {model:35} cost: {cost:6.2f}{priority_note:12}  {sorted(caps)}")
-    print()
+        logging.info(f"  {i}. {model:35} cost: {cost:6.2f}{priority_note:12}  {sorted(caps)}")
 
     return top_models
 
 
-def get_cheapest_model(task: str) -> str:
+async def get_cheapest_model(task: str) -> str:
     """Get the single cheapest model for a task.
 
     Args:
@@ -105,7 +103,7 @@ def get_cheapest_model(task: str) -> str:
     Returns:
         Name of the cheapest model that can handle the task
     """
-    models = select_models(task, top_n=1)
+    models = await select_models(task, top_n=1)
     return models[0]
 
 
