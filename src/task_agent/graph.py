@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from langgraph.constants import START, END
 from langgraph.graph import StateGraph
 
@@ -9,6 +11,7 @@ from task_agent.utils.logic import call_planner_model, entry_node, should_contin
 from task_agent.utils.state import Context, TaskState
 
 setup_logging()
+os.environ["LANGSMITH_TRACING_V2"] = 'false'
 
 # this name is mentioned in langgraph.json
 graph = (
