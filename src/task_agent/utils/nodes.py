@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from task_agent.data_objs.task_details import TODOs, TODO_details, TODOs_Output
 from task_agent.llms.llm_model_factory.llm_factory import create_llm
 from task_agent.llms.simple_llm_selector import get_cheapest_model
+from task_agent.utils.circuit_breaker import call_llm_with_retry
 from task_agent.utils.state import Context
 from task_agent.utils.state import TaskState
 
@@ -113,7 +114,7 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
     structured_llm = llm.with_structured_output(SimpleTODOList)
 
     try:
-        simple_todos = await structured_llm.ainvoke(prompt)
+        simple_todos = await call_llm_with_retry(structured_llm, prompt)
     except Exception as e:
         logging.error(f"[Planner] Error calling LLM: {e}")
         return Command(update={
@@ -163,7 +164,7 @@ async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
         {"role": "user", "content": todo_formated}
     ]
     try:
-        response: AIMessage = await llm.ainvoke(prompt)
+        response: AIMessage = await call_llm_with_retry(llm, prompt)
     except Exception as e:
         logging.error(f"[{todo.todo_id}] Error calling LLM: {e}")
         return {
@@ -225,7 +226,7 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
     ]
     final_output: str | None = None
     try:
-        response: AIMessage = await llm.ainvoke(prompt)
+        response: AIMessage = await call_llm_with_retry(llm, prompt)
         final_output = response.content
     except Exception as e:
         logging.error(f"[COMBINER] Error calling LLM: {e}")

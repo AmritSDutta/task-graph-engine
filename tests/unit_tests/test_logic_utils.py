@@ -2,7 +2,7 @@
 
 import pytest
 
-from task_agent.utils.logic import (
+from task_agent.utils.nodes import (
     SimpleTODO,
     SimpleTODOList,
 )
@@ -15,7 +15,7 @@ from task_agent.data_objs.task_details import (
 
 def convert_to_todos_with_mock_config(simple_list, thread_id=None):
     """Helper function that mocks get_config to avoid LangGraph context requirement."""
-    from task_agent.utils import logic
+    from task_agent.utils import nodes
 
     # Create the original function logic inline without get_config call
     todo_details_list = []

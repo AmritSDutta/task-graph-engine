@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from task_agent.logging_config import setup_logging
+from task_agent.utils.circuit_breaker import call_llm_with_retry
 
 # Add project root to path
 ROOT = Path(__file__).resolve().parents[3]
@@ -39,7 +40,7 @@ async def main():
 
     # Create model and execute
     llm = create_llm(cheapest, temperature=0.0)
-    response = await llm.ainvoke(task)
+    response = await call_llm_with_retry(llm, task)
 
     logging.info("Answer:")
     logging.info("-" * 70)
