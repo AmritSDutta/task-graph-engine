@@ -127,13 +127,13 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
         }, goto='END')
 
     # Convert simple output to full TODOs structure
-    todos_response = convert_to_todos(simple_todos)
+    todos_response: TODOs = convert_to_todos(simple_todos)
 
     logging.info(f"[PLANNER] Total TODOs: {len(todos_response.todo_list)}")
     return Command(update={
         "messages": AIMessage(f"Generated {len(todos_response.todo_list)} TODOs for task: {gbt[:100]}"),
         "todos": todos_response,
-        "ended_once": True
+        "ended_once": False
     })
 
 
@@ -261,7 +261,7 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
     return Command(update={
         "ended_once": True,
         "final_report": final_output,
-        "messages": response
+        "messages": response,
     }, goto=END)
 
 

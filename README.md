@@ -142,39 +142,50 @@ asyncio.run(main())
 
 ### Graph Flow
 ```
-┌─────────┐     ┌──────────────────┐     ┌─────────┐
-│  START  │────▶│      entry       │────▶│  END    │
-└─────────┘     └──────────────────┘     └─────────┘
-                     │
-                     ▼
-              ┌──────────────┐
-              │ should_cont. │─────┐ (thread closed)
-              └──────────────┘     │
-                     │             │
-                     ▼             │
-              ┌──────────────┐     │
-              │   planner    │◀────┘
-              └──────────────┘
-                   │
-                   ▼
-         🧠 Select cheapest model
-                   │
-                   ▼
-         📋 Generate TODOs (async)
-                   │
-                   ▼
-              ┌─────────┐
-              │   END   │
-              └─────────┘
+┌─────────┐     ┌──────────────┐     ┌──────────────────┐
+│  START  │────▶│    entry     │────▶│ should_continue  │─────────────────┐
+└─────────┘     └──────────────┘     └──────────────────┘                 │
+                     │                       │                            │
+                     │                       ▼                            ▼
+                     │                ┌─────────────────┐           ┌──────────────┐
+                     │                │ input_validator │──────────▶│   planner    │──┐
+                     │                └─────────────────┘           └──────────────┘  │
+                     │                                                              │
+                     │                                                              ▼
+                     └─────────────────────────────────────────────────────────── END  │
+                                                                                      │
+                                                                                      ▼
+┌─────────────────┐     ┌─────────────┐     ┌──────────────┐     ┌──────────────────────┐
+│  assign_workers │────▶│   subtask   │────▶│  combiner    │────▶│        END           │
+└─────────────────┘     └─────────────┘     └──────────────┘     └──────────────────────┘
+         │                     │                                       │
+         └─────────────────────┼───────────────────────────────────────┘
+                               │
+                         ┌─────▼─────┐
+                         │ fan-out   │
+                         │ (for each │
+                         │  TODO)    │
+                         └───────────┘
 ```
+
+The actual flow is:
+1. START → entry node
+2. entry → conditional check with should_continue
+3. If should_continue returns "input_validator", proceed to input validation
+4. input_validator → planner (generates TODOs)
+5. planner → assign_workers (fan-out to multiple subtasks)
+6. Each subtask → combiner (fan-in after all subtasks complete)
+7. combiner → END
 
 ### Key Components
 - **`graph.py`**: LangGraph state machine definition
-- **`logic.py`**: Node functions (entry, planner, continuation checks)
+- **`nodes.py`**: Node functions (entry, planner, subtask, combiner, input validation)
 - **`llm_factory.py`**: Multi-provider model creation
 - **`simple_llm_selector/`**: Capability inference + routing
 - **`state.py`**: TypedDict state management
 - **`task_details.py`**: Pydantic models for TODOs
+- **`circuit_breaker.py`**: Retry logic with fallback models
+- **`input_validation.py`**: Scanning for potentially malicious content
 
 ---
 
@@ -243,8 +254,7 @@ SUMMARIZER_TEMPERATURE=0.0
 
 ## 🚧 Current Limitations
 
-- **Linear Flow Only**: The graph is currently START→planner→END. We have data structures for fan-out/fan-in (multi-agent evaluation) but it's not implemented yet. Watch this space! 👀
-- **No Retry Logic**: Basic `retry_count` tracking but no exponential backoff yet
+- **No Exponential Backoff**: Basic `retry_count` tracking but no exponential backoff yet
 - **Local Models Only**: Ollama requires running models locally (no remote API)
 - **E2E Tests Skipped**: End-to-end tests need API keys to run (marked as skip by default)
 
