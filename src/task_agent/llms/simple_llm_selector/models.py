@@ -28,7 +28,7 @@ MODEL_CAPABILITIES: dict[str, set[Capability]] = {
     # Google models (2.5+)
     "gemini-2.5-flash": {"reasoning", "tools", "fast", "cheap", "vision", "long", "informational", "coding"},
     "gemini-2.5-flash-lite": {"reasoning", "tools", "fast", "cheap", "informational", "summarizing", "synthesizing"},
-    "gemini-2.5-pro": {"reasoning", "tools", "vision", "long", "informational", "coding", "planning"},
+    "gemini-2.5-pro": {"reasoning", "tools", "vision", "long", "informational", "coding", "planning", "synthesizing"},
 
     # Groq models
     "qwen/qwen-2.5-72b-instruct": {"reasoning", "tools", "fast", "cheap", "informational"},
@@ -36,11 +36,11 @@ MODEL_CAPABILITIES: dict[str, set[Capability]] = {
 
     # ollama Cloud models
     "gemini-3-flash-preview:cloud": {"reasoning", "tools", "fast", "cheap", "vision", "long", "informational"},
-    "qwen3-coder:480b-cloud": {"reasoning", "tools", "fast", "cheap", "informational", "coding"},
+    "qwen3-coder:480b-cloud": {"reasoning", "tools", "cheap", "informational", "coding"},
     "gemma3:27b-cloud": {"reasoning", "tools", "fast", "cheap", "informational", "summarizing", "synthesizing"},
-    "glm-4.6:cloud": {"reasoning", "tools", "fast", "long", "informational", "coding", "planning"},
-    "gpt-oss:20b-cloud": {"reasoning", "tools", "fast", "cheap", "informational", "summarizing", "synthesizing"},
-    "kimi-k2.5:cloud": {"reasoning", "tools", "fast", "cheap", "coding", "planning"},
+    "glm-4.6:cloud": {"reasoning", "tools", "long", "informational", "coding", "planning", "synthesizing", "vision"},
+    "gpt-oss:20b-cloud": {"reasoning", "tools", "cheap", "informational", "summarizing", "synthesizing"},
+    "kimi-k2.5:cloud": {"reasoning", "tools", "cheap", "coding", "planning", "synthesizing", "vision"},
 }
 
 # Preferred models for coding tasks (in priority order)

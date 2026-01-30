@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from task_agent.data_objs.task_details import TODOs, TODO_details, TODOs_Output
 from task_agent.llms.simple_llm_selector import get_cheapest_model
 from task_agent.utils.circuit_breaker import call_llm_with_retry
+from task_agent.utils.input_validation import scan_for_vulnerability
 from task_agent.utils.state import Context
 from task_agent.utils.state import TaskState
 
@@ -66,7 +67,7 @@ async def should_continue(state: TaskState):
         logging.info("Thread already closed, skipping execution")
         return END
 
-    return "planner"  # Normal flow
+    return "input_validator"  # Normal flow
 
 
 async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Command:
@@ -84,6 +85,7 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
     system_prompt = """
     You are a task planning assistant. Analyze the user's task 
     and generate a structured TODO list.
+    You must perform all internal reasoning, task planning, and intermediate steps in English only.
 
     Your output must be JSON with this structure:
         {
@@ -120,7 +122,6 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
     except Exception as e:
         logging.error(f"[Planner] Error calling LLM: {e}")
         return Command(update={
-            "task": gbt,
             "messages": AIMessage(f"Error during planning: {e}"),
             "ended_once": True
         }, goto='END')
@@ -130,11 +131,10 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
 
     logging.info(f"[PLANNER] Total TODOs: {len(todos_response.todo_list)}")
     return Command(update={
-        "task": gbt[:100],
         "messages": AIMessage(f"Generated {len(todos_response.todo_list)} TODOs for task: {gbt[:100]}"),
         "todos": todos_response,
         "ended_once": True
-    }, goto='END')
+    })
 
 
 async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
@@ -217,7 +217,7 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
         You are a helpful synthesizer assistant.                                                                                                                                                                                     
         The user's original request was: {user_query}                                                                                                                                                                                
                                                                                                                                                                                                                                    
-        Generate a synthesized response.   
+        Generate a synthesized response in English.   
     """
     formatted_system_prompt = system_prompt.format(user_query=issue_summary)
     formatted_todos = "\n".join(
@@ -263,3 +263,27 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
         "final_report": final_output,
         "messages": response
     }, goto=END)
+
+
+async def call_input_validation(state: TaskState, runtime: Runtime[Context]) -> Command:
+    cfg = get_config()
+    thread_id = cfg.get("configurable", {}).get("thread_id")
+
+    user_message: list[BaseMessage] = state.get("messages")
+    ctm = convert_to_messages(user_message)
+    gbt = get_buffer_string(ctm, human_prefix="", ai_prefix="").strip()
+    logging.info(f'[{thread_id}] Input received for validation: {gbt[:100]}...')
+    if not user_message:
+        logging.info(ctm)
+        return Command(update={"retry_count": state["retry_count"], "messages": state["messages"]}, goto=END)
+
+    is_safe: bool = await scan_for_vulnerability(gbt)
+    if is_safe:
+        logging.info(f'[{thread_id}] Input validation passed')
+        return Command(update={
+            "task": gbt,
+            "messages": AIMessage(f"Validated user prompt: {gbt[:50]}..."),
+        })
+    else:
+        logging.warning(f'[{thread_id}] Input validation failed - malicious content detected')
+        return Command(update={"messages": AIMessage(f"Unsafe user prompt detected: {gbt[:50]}...")}, goto=END)
