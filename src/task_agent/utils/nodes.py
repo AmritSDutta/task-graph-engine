@@ -283,7 +283,7 @@ async def call_input_validation(state: TaskState, runtime: Runtime[Context]) -> 
         return Command(update={
             "task": gbt,
             "messages": AIMessage(f"Validated user prompt: {gbt[:50]}..."),
-        })
+        }, goto="planner")
     else:
         logging.warning(f'[{thread_id}] Input validation failed - malicious content detected')
         return Command(update={"messages": AIMessage(f"Unsafe user prompt detected: {gbt[:50]}...")}, goto=END)

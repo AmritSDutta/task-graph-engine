@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     DEFAULT_MODEL: str = "gemini-2.0-flash-exp"
     INFERENCE_MODEL: str = "kimi-k2.5:cloud"
     MODERATION_API_CHECK_REQ: bool = True
+    COST_SPREADING_FACTOR: float = 0.03
 
     # Optional: Model parameters
     SUB_TASK_TEMPERATURE: float = 0.0

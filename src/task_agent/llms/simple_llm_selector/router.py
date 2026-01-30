@@ -7,10 +7,13 @@ Flow:
 4. Return top 5 candidates
 """
 import logging
+import math
 from typing import List
 
 from .inference import infer_capabilities
 from .models import MODEL_CAPABILITIES, MODEL_COST, CODING_MODEL_PRIORITY
+from ...config import settings
+from ...utils.model_live_usage import ModelLiveUsage, get_model_usage_singleton
 
 
 async def select_models(task: str, top_n: int = 5) -> List[str]:
@@ -42,11 +45,16 @@ async def select_models(task: str, top_n: int = 5) -> List[str]:
 
     # Step 2: Filter models by capabilities
     candidates = []
+    model_usage: ModelLiveUsage = get_model_usage_singleton()
     for model, model_caps in MODEL_CAPABILITIES.items():
         # Check if model has all required capabilities
         if required_capabilities.issubset(model_caps):
             cost = MODEL_COST.get(model, 999.0)
-            candidates.append((model, cost))
+            factor = math.exp(settings.COST_SPREADING_FACTOR * model_usage.get_model_usage(model))
+            derived_cost: float = cost * factor
+            logging.info(f"{model}: c: {cost:3.3f} |, D: {derived_cost:3.3f} |, factor:{factor:1.5f} | ,"
+                         f" usage: {model_usage.get_model_usage(model)} |")
+            candidates.append((model, derived_cost))
 
     if not candidates:
         raise ValueError(f"No models found with capabilities: {required_capabilities}")

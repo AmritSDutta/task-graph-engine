@@ -5,6 +5,7 @@ from langchain_core.messages import AIMessage
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from task_agent.llms.llm_model_factory.llm_factory import create_llm
+from task_agent.utils.model_live_usage import get_model_usage_singleton, ModelLiveUsage
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +116,10 @@ async def call_llm_with_retry(
     if structured_output:
         llm = llm.with_structured_output(structured_output)
 
+    model_usage: ModelLiveUsage = get_model_usage_singleton()
+
     try:
+        model_usage.add_model_usage(model_name)
         return await _invoke_with_retry(llm, prompt)
     except Exception as e:
         logger.error(f"Primary model {model_name} failed after retries: {e}")
