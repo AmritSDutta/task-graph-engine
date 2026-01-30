@@ -4,9 +4,7 @@ import logging
 
 from .models import Capability
 from ..llm_model_factory.llm_factory import create_llm
-
-# Use a Groq model for fast, cheap inference
-INFERENCE_MODEL = "qwen/qwen3-32b"
+from ...config import settings
 
 
 async def infer_capabilities(task: str) -> set[Capability]:
@@ -22,7 +20,8 @@ async def infer_capabilities(task: str) -> set[Capability]:
         Set of required capabilities
     """
     # Create Groq model for inference
-    llm = create_llm(INFERENCE_MODEL, temperature=0.0)
+    planning_model: str = settings.INFERENCE_MODEL
+    llm = create_llm(planning_model, temperature=0.0)
 
     prompt = f"""You are a task classifier. Analyze this task and identify which LLM capabilities are required.
 
@@ -35,6 +34,9 @@ async def infer_capabilities(task: str) -> set[Capability]:
         - coding: Code writing, programming, software development
         - vision: Image understanding, visual content
         - long: Long context window needed
+        - synthesizing: Synthesizing capabilities
+        - summarizing: Summarizing capabilities
+        - planning: Planning capabilities
         
         Task: "{task}"
         
@@ -43,12 +45,12 @@ async def infer_capabilities(task: str) -> set[Capability]:
         2. If task asks for facts, explanations, or knowledge: include "informational"
         3. If task needs complex analysis: include "reasoning"
         4. Return only the required capability names as a comma-separated list.
-        5. If unsure, default to "informational"
+        5. If unsure, default to "reasoning"
         
         Example outputs:
-        coding, reasoning
-        informational
-        coding, tools
+        coding, reasoning, cheap
+        informational, cheap, long
+        summarizing, synthesizing, long
         
         Task: "{task}"
         
@@ -58,11 +60,21 @@ async def infer_capabilities(task: str) -> set[Capability]:
     try:
         response = await llm.ainvoke(prompt)
         content = response.content.strip()
+        logging.info(f"Capability inference[{planning_model}] suggested: {content}")
 
         # Parse the response - look for capability names
         valid_caps = {
-            "reasoning", "tools", "fast", "cheap",
-            "informational", "coding", "vision", "long"
+            "reasoning",  # Complex reasoning, chain-of-thought
+            "tools",  # Function calling, tool use
+            "fast",  # Low latency
+            "cheap",  # Low cost per token
+            "informational",  # General information, factual queries
+            "coding",  # Code writing, programming, development
+            "vision",  # Image understanding
+            "long",  # Long context window
+            "synthesizing",  # synthesizing
+            "summarizing",  # summarizing
+            "planning",  # planning
         }
 
         capabilities = set()

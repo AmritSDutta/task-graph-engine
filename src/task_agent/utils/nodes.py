@@ -118,6 +118,7 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
     except Exception as e:
         logging.error(f"[Planner] Error calling LLM: {e}")
         return Command(update={
+            "task": gbt,
             "messages": AIMessage(f"Error during planning: {e}"),
             "ended_once": True
         }, goto='END')
@@ -207,9 +208,12 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
     completed_todos: list[str] = state['completed_todos']
     logging.info(f"Combiner received {len(completed_todos)} completed todos")
     system_prompt = """
-        You are a helpful synthesizer assistant. 
-        Generate a synthesized response.
-        """
+        You are a helpful synthesizer assistant.                                                                                                                                                                                     
+        The user's original request was: {user_query}                                                                                                                                                                                
+                                                                                                                                                                                                                                   
+        Generate a synthesized response.   
+    """
+    formatted_system_prompt = system_prompt.format(user_query=issue_summary)
     formatted_todos = "\n".join(
         f"{i + 1}. {todo[:500]}..." if len(todo) > 500 else f"{i + 1}. {todo}"
         for i, todo in enumerate(completed_todos)
@@ -221,7 +225,7 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
     llm = create_llm(cheapest, temperature=0.0)
     # Combine system prompt with user input
     prompt = [
-        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": formatted_system_prompt},
         {"role": "user", "content": formatted_todos}
     ]
     final_output: str | None = None

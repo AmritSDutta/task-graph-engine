@@ -13,15 +13,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # API Keys
-    OPENAI_API_KEY: str
-    GOOGLE_API_KEY: str
-    ANTHROPIC_API_KEY: str = ""
-
     # Model Configurations
     SUB_TASK_MODEL: str = "gpt-4o-mini"
     SUMMARIZER_MODEL: str = "gemini-2.0-flash-exp"
     DEFAULT_MODEL: str = "gemini-2.0-flash-exp"
+    INFERENCE_MODEL: str = "kimi-k2.5:cloud"
 
     # Optional: Model parameters
     SUB_TASK_TEMPERATURE: float = 0.0
@@ -30,4 +26,5 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+
 
