@@ -87,7 +87,7 @@ async def infer_capabilities(task: str) -> set[Capability]:
 
         # Fallback to informational if empty
         if not capabilities:
-            capabilities.add("informational")
+            capabilities.add("reasoning")
 
         return capabilities
 

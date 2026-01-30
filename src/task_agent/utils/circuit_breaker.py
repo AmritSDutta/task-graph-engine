@@ -3,6 +3,8 @@ import time
 from langchain_core.messages import AIMessage
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
+from task_agent.llms.llm_model_factory.llm_factory import create_llm
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,49 +46,88 @@ def _extract_token_usage(response: AIMessage) -> dict | None:
     return None
 
 
-@retry(
+async def _invoke_with_retry(llm, prompt) -> AIMessage:
+    """Internal function with tenacity retry decorator.
+
+    This function is decorated with @retry and will be called for both
+    primary and fallback model attempts.
+    """
+    start_time = time.time()
+    response = await llm.ainvoke(prompt)
+    elapsed = time.time() - start_time
+
+    # Extract token usage from response
+    token_usage = _extract_token_usage(response)
+
+    # Log completion with timing and token usage
+    if token_usage:
+        logger.info(
+            f"LLM call completed in {elapsed:.3f}s | "
+            f"Tokens: {token_usage.get('input_tokens', 'N/A')} in, "
+            f"{token_usage.get('output_tokens', 'N/A')} out, "
+            f"{token_usage.get('total_tokens', 'N/A')} total"
+        )
+    else:
+        logger.info(f"LLM call completed in {elapsed:.3f}s")
+
+    # Add timing metadata to response metadata if available
+    if hasattr(response, 'metadata'):
+        response.metadata['execution_time'] = f"{elapsed:.3f}s"
+
+    return response
+
+
+# Apply retry decorator to the internal function
+_invoke_with_retry = retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
     retry=retry_if_exception_type(Exception),  # Be specific in production!
-    reraise=True  # Raise the exception so the try/except block below catches it
-)
-async def call_llm_with_retry(llm, prompt) -> AIMessage:
-    """Call LLM with retry logic, timing, and logging.
+    reraise=True
+)(_invoke_with_retry)
+
+
+async def call_llm_with_retry(
+    model_name: str,
+    prompt,
+    fallback_model: str | None = None,
+    structured_output=None,
+    **kwargs
+) -> AIMessage:
+    """Call LLM with retry logic, fallback model support, timing, and logging.
 
     Args:
-        llm: The LangChain LLM instance to invoke
+        model_name: The model name to use (e.g., 'gpt-4o-mini')
         prompt: The prompt to send to the LLM
+        fallback_model: Optional fallback model if primary fails (e.g., 'gpt-4o')
+        structured_output: Optional Pydantic schema for structured output
+        **kwargs: Additional arguments to pass to create_llm (e.g., temperature=0.0)
 
     Returns:
         AIMessage: The response from the LLM
+
+    Raises:
+        Exception: If both primary and fallback models fail after retries
     """
-    logger.info(f"Calling LLM: {type(llm).__name__}")
-    start_time = time.time()
+    # Try primary model
+    logger.info(f"Calling LLM: {model_name}")
+    llm = create_llm(model_name, **kwargs)
+    if structured_output:
+        llm = llm.with_structured_output(structured_output)
 
     try:
-        response = await llm.ainvoke(prompt)
-        elapsed = time.time() - start_time
-
-        # Extract token usage from response
-        token_usage = _extract_token_usage(response)
-
-        # Log completion with timing and token usage
-        if token_usage:
-            logger.info(
-                f"LLM call completed in {elapsed:.3f}s | "
-                f"Tokens: {token_usage.get('input_tokens', 'N/A')} in, "
-                f"{token_usage.get('output_tokens', 'N/A')} out, "
-                f"{token_usage.get('total_tokens', 'N/A')} total"
-            )
-        else:
-            logger.info(f"LLM call completed in {elapsed:.3f}s")
-
-        # Add timing metadata to response metadata if available
-        if hasattr(response, 'metadata'):
-            response.metadata['execution_time'] = f"{elapsed:.3f}s"
-
-        return response
+        return await _invoke_with_retry(llm, prompt)
     except Exception as e:
-        elapsed = time.time() - start_time
-        logger.error(f"LLM call failed after {elapsed:.3f}s: {e}")
+        logger.error(f"Primary model {model_name} failed after retries: {e}")
+
+        # Try fallback model if provided
+        if fallback_model:
+            logger.warning(f"Falling back to {fallback_model}")
+            llm_fallback = create_llm(fallback_model, **kwargs)
+            if structured_output:
+                llm_fallback = llm_fallback.with_structured_output(structured_output)
+            try:
+                return await _invoke_with_retry(llm_fallback, prompt)
+            except Exception as fallback_error:
+                logger.error(f"Fallback model {fallback_model} also failed: {fallback_error}")
+                raise fallback_error
         raise
