@@ -37,6 +37,8 @@ class TestModelCapabilities:
             "qwen3-coder:480b-cloud",
             "gemma3:27b-cloud",
             "glm-4.6:cloud",
+            "gpt-oss:20b-cloud",
+            "kimi-k2.5:cloud",
         }
         assert set(MODEL_CAPABILITIES.keys()) >= expected_models
 
@@ -56,6 +58,7 @@ class TestModelCapabilities:
             "long",
             "synthesizing",
             "summarizing",
+            "planning",
         }
         for model, capabilities in MODEL_CAPABILITIES.items():
             assert capabilities.issubset(valid_capabilities), f"{model} has invalid capabilities"
@@ -134,6 +137,7 @@ class TestGetModelCapabilities:
             "long",
             "synthesizing",
             "summarizing",
+            "planning",
         }
         for model in MODEL_CAPABILITIES.keys():
             caps = get_model_capabilities(model)
@@ -251,10 +255,11 @@ class TestCodingModelPriority:
 
     def test_coding_model_priority_order_is_maintained(self):
         """Test that the priority order is as expected."""
-        assert CODING_MODEL_PRIORITY[0] == "qwen3-coder:480b-cloud"
-        assert CODING_MODEL_PRIORITY[1] == "glm-4.6:cloud"
-        assert CODING_MODEL_PRIORITY[2] == "gemini-2.5-pro"
-        assert CODING_MODEL_PRIORITY[3] == "gemini-2.5-flash"
+        assert CODING_MODEL_PRIORITY[0] == "kimi-k2.5:cloud"
+        assert CODING_MODEL_PRIORITY[1] == "qwen3-coder:480b-cloud"
+        assert CODING_MODEL_PRIORITY[2] == "glm-4.6:cloud"
+        assert CODING_MODEL_PRIORITY[3] == "gemini-2.5-pro"
+        assert CODING_MODEL_PRIORITY[4] == "gemini-2.5-flash"
 
     def test_coding_model_priority_no_duplicates(self):
         """CODING_MODEL_PRIORITY should not have duplicate entries."""
@@ -278,6 +283,7 @@ class TestCapabilityType:
             "long",
             "synthesizing",
             "summarizing",
+            "planning",
         }
         # Check that all capabilities in MODEL_CAPABILITIES are from this set
         all_caps = set()
