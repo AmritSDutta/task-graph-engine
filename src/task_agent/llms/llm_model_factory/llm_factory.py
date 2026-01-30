@@ -7,14 +7,13 @@ Centralizes model creation with clean separation of concerns:
 - Factory: Instantiates model using registry + resolved provider
 """
 
-from typing import Callable, Type
+from typing import Type
 
+from langchain_core.language_models import BaseChatModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
-from langchain_core.language_models import BaseChatModel
-
 
 # Registry: Provider → LangChain constructor
 LLM_REGISTRY: dict[str, Type[BaseChatModel]] = {

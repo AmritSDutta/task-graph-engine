@@ -10,7 +10,7 @@ import logging
 from typing import List
 
 from .inference import infer_capabilities
-from .models import MODEL_CAPABILITIES, MODEL_COST, CODING_MODEL_PRIORITY, Capability
+from .models import MODEL_CAPABILITIES, MODEL_COST, CODING_MODEL_PRIORITY
 
 
 async def select_models(task: str, top_n: int = 5) -> List[str]:

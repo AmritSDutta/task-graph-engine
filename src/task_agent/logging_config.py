@@ -42,7 +42,7 @@ def setup_logging():
     logging.basicConfig(
         level=logging.INFO,
         handlers=[handler],
-        force=True,   # <-- crucial to override uvicorn/langgraph setup
+        force=True,  # <-- crucial to override uvicorn/langgraph setup
     )
 
     # 4. Silence noisy libraries

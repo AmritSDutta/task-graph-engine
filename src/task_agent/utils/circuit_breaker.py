@@ -1,5 +1,6 @@
 import logging
 import time
+
 from langchain_core.messages import AIMessage
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
@@ -87,11 +88,11 @@ _invoke_with_retry = retry(
 
 
 async def call_llm_with_retry(
-    model_name: str,
-    prompt,
-    fallback_model: str | None = None,
-    structured_output=None,
-    **kwargs
+        model_name: str,
+        prompt,
+        fallback_model: str | None = None,
+        structured_output=None,
+        **kwargs
 ) -> AIMessage:
     """Call LLM with retry logic, fallback model support, timing, and logging.
 
