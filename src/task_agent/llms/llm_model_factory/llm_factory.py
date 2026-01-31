@@ -43,14 +43,17 @@ def resolve_provider(model: str) -> str:
     # Fallback to prefix-based resolution
     prefixes = {
         "gpt-": "openai",
-        "gemini-": "google",
         "chatgpt-": "openai",
+        "moonshotai/": "groq",
+        "gemini-": "google",
+        "llama-3.3-70b": "groq",
+        "llama-3.1-8b": "groq",
         "qwen/": "groq",
         "qwen-": "groq",
         "GLM-4.5": "Zhipu",
         "GLM-4.6V": "Zhipu",
         "GLM-4.7-Flash": "Zhipu",
-        "glm-4.6:": "ollama",
+        "glm-": "ollama",  # Must come after specific Zhipu GLM prefixes
         "llama": "ollama",
         "gemma": "ollama",
     }

@@ -23,6 +23,12 @@ class TestResolveProvider:
         assert resolve_provider("chatgpt-4o") == "openai"
         assert resolve_provider("chatgpt-4o-latest") == "openai"
 
+    def test_resolve_openai_moonshotai_prefix(self):
+        assert resolve_provider("moonshotai/kimi-k2-instruct") == "groq"
+
+    def test_resolve_groq_llama_3_1_8b_prefix(self):
+        assert resolve_provider("llama-3.1-8b-instant") == "groq"
+
     def test_resolve_google_gemini_prefix(self):
         assert resolve_provider("gemini-2.0-flash-exp") == "google"
         assert resolve_provider("gemini-3-flash-preview:cloud") == "ollama"  # cloud takes precedence
@@ -87,7 +93,7 @@ class TestLLMRegistry:
     """Tests for LLM_REGISTRY configuration."""
 
     def test_registry_contains_expected_providers(self):
-        expected_providers = {"openai", "google", "groq", "ollama"}
+        expected_providers = {"openai", "google", "groq", "ollama", "Zhipu"}
         assert set(LLM_REGISTRY.keys()) == expected_providers
 
     def test_registry_values_are_chat_model_classes(self):
@@ -149,6 +155,7 @@ class TestCreateLlm:
             "gpt-5-mini",
             "gpt-5-nano",
             "chatgpt-4o",
+            "moonshotai/kimi-k2-instruct",
             "gemini-2.0-flash-exp",
             "gemini-3-flash-preview:cloud",
             "qwen/qwen-2.5-72b-instruct",
@@ -157,6 +164,8 @@ class TestCreateLlm:
             "glm-4.6:cloud",
             "gemma3:27b-cloud",
             "llama-3-70b",
+            "llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile",
             "gpt-oss:20b-cloud",
             "kimi-k2.5:cloud",
         ],

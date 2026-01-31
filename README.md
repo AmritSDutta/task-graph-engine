@@ -38,9 +38,28 @@ A clever factory that handles model name resolution through layered logic:
 create_llm("gemini-2.5-flash")        # → Google (prefix match)
 create_llm("qwen/qwen-2.5-72b")       # → Groq (prefix match)
 create_llm("gemma3:27b-cloud")        # → Ollama (suffix "cloud")
+create_llm("GLM-4.5-Flash")           # → Zhipu (prefix match)
 create_llm("llama-3.2")               # → Ollama (default fallback)
 ```
 **Order matters!** We check suffix → prefix → default to handle edge cases elegantly.
+
+#### 📋 **CSV-Based Model Configuration** 🆕
+Model capabilities and costs are loaded from CSV files - no code changes needed:
+```bash
+# model_capabilities.csv
+model,reasoning,tools,fast,cheap,informational,coding,vision,long
+gpt-4o,True,True,True,False,True,True,True,True,True
+
+# model_costs.csv
+model,cost
+gpt-4o,5.0
+gpt-4o-mini,0.035
+```
+
+**Flexible Path Resolution**:
+- Default: Project root (`model_costs.csv`)
+- Relative: Current directory (`./config/costs.csv`)
+- Absolute: Docker mount (`/app/config/costs.csv`)
 
 #### 🔄 **Two-Step Structured Output**
 LLMs hate complex nested schemas. So we trick them:
@@ -63,13 +82,14 @@ response = await llm.ainvoke(messages)
 ```
 
 #### 🌐 **Multi-Provider Support**
-14 models across 4 providers, one clean interface:
+19 models across 5 providers, one clean interface:
 | Provider | Models | Specialty |
 |----------|--------|-----------|
 | **OpenAI** | gpt-4o, gpt-4o-mini, gpt-5-* | General purpose |
-| **Google** | gemini-2.5-flash/pro, gemini-3-* | Speed & reasoning |
-| **Groq** | qwen-2.5, qwen3, qwen3-coder | Fast inference |
-| **Ollama** | llama, gemma3, glm-4.6:cloud | Local deployment |
+| **Google** | gemini-2.5-*/flash-lite/pro, gemini-3-* | Speed & reasoning |
+| **Groq** | qwen-2.5, qwen3 | Fast inference |
+| **Ollama** | llama, gemma3, glm-4.6:cloud, qwen3-coder, kimi-k2.5 | Local deployment |
+| **Zhipu** | GLM-4.5/4.6V/4.7-Flash | Chinese models |
 
 ---
 
@@ -224,7 +244,7 @@ pytest -m '' tests/end_to_end/
 pytest tests/unit_tests/test_combiner.py -v
 ```
 
-**Test Stats**: 🧪 180 test cases, 1793 lines of test code, covering edge cases like special characters, long inputs, and model resolution logic.
+**Test Stats**: 🧪 299 test cases, covering edge cases like special characters, long inputs, model resolution logic, and CSV path resolution.
 
 ---
 
@@ -237,13 +257,31 @@ All settings via environment variables (`.env` file):
 OPENAI_API_KEY=sk-...
 GOOGLE_API_KEY=AIza...
 
-# Optional (default models)
-SUB_TASK_MODEL=gpt-4o-mini
-SUMMARIZER_MODEL=gemini-2.5-flash
+# Optional (inference model)
+INFERENCE_MODEL=kimi-k2.5:cloud
 
-# Optional (temperature tuning)
-SUB_TASK_TEMPERATURE=0.0
-SUMMARIZER_TEMPERATURE=0.0
+# Optional (moderation)
+MODERATION_API_CHECK_REQ=true
+
+# Optional (cost spreading for load balancing)
+COST_SPREADING_FACTOR=0.03
+
+# Optional (CSV file paths - supports absolute, relative, or filename)
+MODEL_COST_CSV_PATH=model_costs.csv
+MODEL_CAPABILITY_CSV_PATH=model_capabilities.csv
+```
+
+**CSV Path Resolution** 🆴:
+- **Absolute path**: `/app/config/model_costs.csv` (use for Docker mounts)
+- **Relative path**: `./config/model_costs.csv` (resolved from cwd)
+- **Filename only**: `model_costs.csv` (resolved from project root)
+
+**Docker Example**:
+```bash
+docker run -e OPENAI_API_KEY=xxx \
+  -e MODEL_COST_CSV_PATH=/app/config/model_costs.csv \
+  -v /host/config:/app/config \
+  task-graph-engine
 ```
 
 **No hardcoded secrets** - we use `pydantic-settings` for type-safe config loading. 🔒

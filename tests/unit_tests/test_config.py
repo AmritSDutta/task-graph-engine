@@ -14,35 +14,32 @@ class TestSettingsWithMockedEnv:
     def test_settings_default_values(self):
         """Test that Settings have correct default values."""
         settings = Settings()
-        assert settings.SUB_TASK_MODEL == "gpt-4o-mini"
-        assert settings.SUMMARIZER_MODEL == "gemini-2.0-flash-exp"
-        assert settings.DEFAULT_MODEL == "gemini-2.0-flash-exp"
         assert settings.INFERENCE_MODEL == "kimi-k2.5:cloud"
-        assert settings.SUB_TASK_TEMPERATURE == 0.0
-        assert settings.SUMMARIZER_TEMPERATURE == 0.0
+        assert settings.MODERATION_API_CHECK_REQ is True
+        assert settings.COST_SPREADING_FACTOR == 0.03
+        assert settings.MODEL_COST_CSV_PATH == "model_costs.csv"
+        assert settings.MODEL_CAPABILITY_CSV_PATH == "model_capabilities.csv"
 
     def test_settings_with_custom_env_vars(self, monkeypatch):
         """Test that Settings can be customized via environment variables."""
-        monkeypatch.setenv("SUB_TASK_MODEL", "gpt-4o")
-        monkeypatch.setenv("SUMMARIZER_MODEL", "gemini-2.5-flash")
-        monkeypatch.setenv("DEFAULT_MODEL", "gpt-5-mini")
         monkeypatch.setenv("INFERENCE_MODEL", "gpt-4o")
-        monkeypatch.setenv("SUB_TASK_TEMPERATURE", "0.7")
-        monkeypatch.setenv("SUMMARIZER_TEMPERATURE", "0.5")
+        monkeypatch.setenv("MODERATION_API_CHECK_REQ", "false")
+        monkeypatch.setenv("COST_SPREADING_FACTOR", "0.05")
+        monkeypatch.setenv("MODEL_COST_CSV_PATH", "./custom/costs.csv")
+        monkeypatch.setenv("MODEL_CAPABILITY_CSV_PATH", "/absolute/path/caps.csv")
 
         settings = Settings()
-        assert settings.SUB_TASK_MODEL == "gpt-4o"
-        assert settings.SUMMARIZER_MODEL == "gemini-2.5-flash"
-        assert settings.DEFAULT_MODEL == "gpt-5-mini"
         assert settings.INFERENCE_MODEL == "gpt-4o"
-        assert settings.SUB_TASK_TEMPERATURE == 0.7
-        assert settings.SUMMARIZER_TEMPERATURE == 0.5
+        assert settings.MODERATION_API_CHECK_REQ is False
+        assert settings.COST_SPREADING_FACTOR == 0.05
+        assert settings.MODEL_COST_CSV_PATH == "./custom/costs.csv"
+        assert settings.MODEL_CAPABILITY_CSV_PATH == "/absolute/path/caps.csv"
 
-    def test_settings_temperature_must_be_numeric(self, monkeypatch):
-        """Temperature values must be numeric (float)."""
+    def test_settings_cost_spreading_factor_must_be_numeric(self, monkeypatch):
+        """COST_SPREADING_FACTOR must be numeric (float)."""
         monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
         monkeypatch.setenv("GOOGLE_API_KEY", "test-google")
-        monkeypatch.setenv("SUB_TASK_TEMPERATURE", "not-a-number")
+        monkeypatch.setenv("COST_SPREADING_FACTOR", "not-a-number")
 
         with pytest.raises(ValidationError):
             Settings()
@@ -51,13 +48,12 @@ class TestSettingsWithMockedEnv:
         """Model configuration values should be strings."""
         monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
         monkeypatch.setenv("GOOGLE_API_KEY", "test-google")
-        monkeypatch.setenv("SUB_TASK_MODEL", "gpt-4o-mini")
-        monkeypatch.setenv("SUMMARIZER_MODEL", "gemini-2.5-flash")
+        monkeypatch.setenv("INFERENCE_MODEL", "gpt-4o-mini")
 
         settings = Settings()
-        assert isinstance(settings.SUB_TASK_MODEL, str)
-        assert isinstance(settings.SUMMARIZER_MODEL, str)
-        assert isinstance(settings.DEFAULT_MODEL, str)
+        assert isinstance(settings.INFERENCE_MODEL, str)
+        assert isinstance(settings.MODEL_COST_CSV_PATH, str)
+        assert isinstance(settings.MODEL_CAPABILITY_CSV_PATH, str)
 
 
 class TestSettingsConfiguration:
@@ -65,8 +61,6 @@ class TestSettingsConfiguration:
 
     def test_settings_uses_env_file(self):
         """Settings should be configured to use .env file."""
-        # Settings already imported at module level
-
         # Check model_config has correct settings
         assert Settings.model_config["env_file"] == ".env"
         assert Settings.model_config["env_file_encoding"] == "utf-8"
@@ -94,13 +88,11 @@ class TestSettingsConfiguration:
         monkeypatch.setenv("GOOGLE_API_KEY", "test-google")
         # Note: On Windows, env vars are case-insensitive by default
         # On Unix, case_sensitive=True would cause lowercase to not match
-        monkeypatch.setenv("SUB_TASK_MODEL", "custom-model")  # uppercase
-
-        # Settings already imported at module level
+        monkeypatch.setenv("INFERENCE_MODEL", "custom-model")  # uppercase
 
         settings = Settings()
         # Uppercase should match
-        assert settings.SUB_TASK_MODEL == "custom-model"
+        assert settings.INFERENCE_MODEL == "custom-model"
 
 
 class TestSettingsFieldTypes:
@@ -109,33 +101,31 @@ class TestSettingsFieldTypes:
     def test_model_names_are_strings(self):
         """Model configuration values should be strings."""
         settings = Settings()
-        assert isinstance(settings.SUB_TASK_MODEL, str)
-        assert isinstance(settings.SUMMARIZER_MODEL, str)
-        assert isinstance(settings.DEFAULT_MODEL, str)
         assert isinstance(settings.INFERENCE_MODEL, str)
+        assert isinstance(settings.MODEL_COST_CSV_PATH, str)
+        assert isinstance(settings.MODEL_CAPABILITY_CSV_PATH, str)
 
-    def test_temperature_default_is_float(self, monkeypatch):
-        """Temperature default should be float."""
+    def test_cost_spreading_factor_default_is_float(self):
+        """COST_SPREADING_FACTOR default should be float."""
+        settings = Settings()
+        assert isinstance(settings.COST_SPREADING_FACTOR, float)
+        assert settings.COST_SPREADING_FACTOR == 0.03
+
+    def test_cost_spreading_factor_accepts_integer(self, monkeypatch):
+        """COST_SPREADING_FACTOR should accept integer values (converted to float)."""
         monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
         monkeypatch.setenv("GOOGLE_API_KEY", "test-google")
-
-        # Settings already imported at module level
-
-        settings = Settings()
-        assert isinstance(settings.SUB_TASK_TEMPERATURE, float)
-        assert isinstance(settings.SUMMARIZER_TEMPERATURE, float)
-
-    def test_temperature_accepts_integer(self, monkeypatch):
-        """Temperature should accept integer values (converted to float)."""
-        monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
-        monkeypatch.setenv("GOOGLE_API_KEY", "test-google")
-        monkeypatch.setenv("SUB_TASK_TEMPERATURE", "1")  # string integer
-
-        # Settings already imported at module level
+        monkeypatch.setenv("COST_SPREADING_FACTOR", "1")  # string integer
 
         settings = Settings()
-        assert settings.SUB_TASK_TEMPERATURE == 1.0
-        assert isinstance(settings.SUB_TASK_TEMPERATURE, float)
+        assert settings.COST_SPREADING_FACTOR == 1.0
+        assert isinstance(settings.COST_SPREADING_FACTOR, float)
+
+    def test_moderation_api_check_req_is_bool(self):
+        """MODERATION_API_CHECK_REQ should be boolean."""
+        settings = Settings()
+        assert isinstance(settings.MODERATION_API_CHECK_REQ, bool)
+        assert settings.MODERATION_API_CHECK_REQ is True
 
 
 class TestSettingsGlobalInstance:
@@ -168,12 +158,10 @@ class TestSettingsWithEnvFile:
 
     def test_env_file_path_is_dotenv(self):
         """Settings should be configured to read from .env file."""
-        # Settings already imported at module level
         assert Settings.model_config["env_file"] == ".env"
 
     def test_env_file_encoding_is_utf8(self):
         """Settings should use UTF-8 encoding for .env file."""
-        # Settings already imported at module level
         assert Settings.model_config["env_file_encoding"] == "utf-8"
 
 
@@ -189,40 +177,27 @@ class TestSettingsRequiredFields:
         """Test that all Settings fields have default values."""
         settings = Settings()
         # All fields should be accessible
-        assert hasattr(settings, "SUB_TASK_MODEL")
-        assert hasattr(settings, "SUMMARIZER_MODEL")
-        assert hasattr(settings, "DEFAULT_MODEL")
         assert hasattr(settings, "INFERENCE_MODEL")
-        assert hasattr(settings, "SUB_TASK_TEMPERATURE")
-        assert hasattr(settings, "SUMMARIZER_TEMPERATURE")
+        assert hasattr(settings, "MODERATION_API_CHECK_REQ")
+        assert hasattr(settings, "COST_SPREADING_FACTOR")
+        assert hasattr(settings, "MODEL_COST_CSV_PATH")
+        assert hasattr(settings, "MODEL_CAPABILITY_CSV_PATH")
 
 
 class TestSettingsDefaults:
     """Tests for default values."""
 
-    def test_default_model_names(self, monkeypatch):
-        """Test default model names are set correctly."""
+    def test_default_values(self, monkeypatch):
+        """Test default values are set correctly."""
         monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
         monkeypatch.setenv("GOOGLE_API_KEY", "test-google")
 
-        # Settings already imported at module level
-
         settings = Settings()
-        # Model defaults
-        assert settings.SUB_TASK_MODEL == "gpt-4o-mini"
-        assert settings.SUMMARIZER_MODEL == "gemini-2.0-flash-exp"
-        assert settings.DEFAULT_MODEL == "gemini-2.0-flash-exp"
-
-    def test_default_temperature_values(self, monkeypatch):
-        """Test default temperature values."""
-        monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
-        monkeypatch.setenv("GOOGLE_API_KEY", "test-google")
-
-        # Settings already imported at module level
-
-        settings = Settings()
-        assert settings.SUB_TASK_TEMPERATURE == 0.0
-        assert settings.SUMMARIZER_TEMPERATURE == 0.0
+        assert settings.INFERENCE_MODEL == "kimi-k2.5:cloud"
+        assert settings.MODERATION_API_CHECK_REQ is True
+        assert settings.COST_SPREADING_FACTOR == 0.03
+        assert settings.MODEL_COST_CSV_PATH == "model_costs.csv"
+        assert settings.MODEL_CAPABILITY_CSV_PATH == "model_capabilities.csv"
 
 
 class TestSettingsEdgeCases:
@@ -233,37 +208,50 @@ class TestSettingsEdgeCases:
         # Note: This documents current behavior. Model names should be validated
         pass  # No easy way to test this without reloading modules
 
-    def test_whitespace_in_model_is_preserved(self, monkeypatch):
-        """Whitespace in model names is preserved as-is."""
-        monkeypatch.setenv("SUB_TASK_MODEL", " custom-model ")
-        monkeypatch.setenv("SUMMARIZER_MODEL", " another-model ")
+    def test_whitespace_in_path_is_preserved(self, monkeypatch):
+        """Whitespace in path names is preserved as-is."""
+        monkeypatch.setenv("MODEL_COST_CSV_PATH", " custom/path.csv ")
+        monkeypatch.setenv("MODEL_CAPABILITY_CSV_PATH", " another/path.csv ")
 
         settings = Settings()
-        assert settings.SUB_TASK_MODEL == " custom-model "
-        assert settings.SUMMARIZER_MODEL == " another-model "
+        assert settings.MODEL_COST_CSV_PATH == " custom/path.csv "
+        assert settings.MODEL_CAPABILITY_CSV_PATH == " another/path.csv "
 
-    def test_temperature_negative_value(self, monkeypatch):
-        """Negative temperature values should be accepted (it's a valid float)."""
+    def test_cost_spreading_factor_negative_value(self, monkeypatch):
+        """Negative COST_SPREADING_FACTOR should be accepted (it's a valid float)."""
         monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
         monkeypatch.setenv("GOOGLE_API_KEY", "test-google")
-        monkeypatch.setenv("SUB_TASK_TEMPERATURE", "-0.5")
+        monkeypatch.setenv("COST_SPREADING_FACTOR", "-0.5")
 
         from importlib import reload
         from task_agent import config
 
         reload(config)
 
-        assert config.settings.SUB_TASK_TEMPERATURE == -0.5
+        assert config.settings.COST_SPREADING_FACTOR == -0.5
 
-    def test_temperature_high_value(self, monkeypatch):
-        """High temperature values should be accepted (it's a valid float)."""
+    def test_cost_spreading_factor_high_value(self, monkeypatch):
+        """High COST_SPREADING_FACTOR should be accepted (it's a valid float)."""
         monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
         monkeypatch.setenv("GOOGLE_API_KEY", "test-google")
-        monkeypatch.setenv("SUB_TASK_TEMPERATURE", "2.5")
+        monkeypatch.setenv("COST_SPREADING_FACTOR", "2.5")
 
         from importlib import reload
         from task_agent import config
 
         reload(config)
 
-        assert config.settings.SUB_TASK_TEMPERATURE == 2.5
+        assert config.settings.COST_SPREADING_FACTOR == 2.5
+
+    def test_moderation_api_check_accepts_bool_strings(self, monkeypatch):
+        """MODERATION_API_CHECK_REQ accepts boolean string values."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
+        monkeypatch.setenv("GOOGLE_API_KEY", "test-google")
+        monkeypatch.setenv("MODERATION_API_CHECK_REQ", "false")
+
+        settings = Settings()
+        assert settings.MODERATION_API_CHECK_REQ is False
+
+        monkeypatch.setenv("MODERATION_API_CHECK_REQ", "true")
+        settings = Settings()
+        assert settings.MODERATION_API_CHECK_REQ is True

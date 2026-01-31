@@ -115,7 +115,7 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
         simple_todos = await call_llm_with_retry(
             cheapest,
             prompt,
-            fallback_model="gpt-4o",  # Fallback to GPT-4o if cheapest fails
+            fallback_model="gpt-4o-mini",  # Fallback to GPT-4o if cheapest fails
             structured_output=SimpleTODOList,
             temperature=0.0
         )
@@ -172,7 +172,7 @@ async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
         response: AIMessage = await call_llm_with_retry(
             cheapest,
             prompt,
-            fallback_model="gpt-4o",
+            fallback_model="gpt-4o-mini",
             temperature=0.0
         )
     except Exception as e:
@@ -241,7 +241,7 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
         response: AIMessage = await call_llm_with_retry(
             cheapest,
             prompt,
-            fallback_model="gpt-4o",
+            fallback_model="gpt-4o-mini",
             temperature=0.0
         )
         final_output = response.content
