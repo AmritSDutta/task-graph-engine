@@ -9,7 +9,7 @@ class ModelLiveUsage:
         self.model_usage: Dict[str, int] = defaultdict(lambda: 0)
 
     def add_model_usage(self, model_name: str, usage: int = 1) -> None:
-        self.model_usage[model_name] = self.model_usage[model_name] + 1
+        self.model_usage[model_name] = self.model_usage[model_name] + usage
 
     def get_models_usage(self, model_names: List[str]) -> Dict[str, int]:
         """Returns a dictionary with the current usage values for the specified models."""

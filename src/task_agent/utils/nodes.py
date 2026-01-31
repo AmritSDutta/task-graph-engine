@@ -153,6 +153,7 @@ async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
     system_prompt = """
     You are a helpful assistant. 
     Analyze the user's task and generate a appropriate response.
+    you can use tools if it is available.
     """
 
     todo_formated = f"ID: {todo.todo_id}\nTitle: {todo.todo_name}\nDescription: {todo.todo_description}"

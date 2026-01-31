@@ -6,6 +6,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 from task_agent.llms.llm_model_factory.llm_factory import create_llm
 from task_agent.utils.model_live_usage import get_model_usage_singleton, ModelLiveUsage
+from task_agent.utils.tools import get_web_search_tool
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,12 @@ async def call_llm_with_retry(
     # Try primary model
     logger.info(f"Calling LLM: {model_name}")
     llm = create_llm(model_name, **kwargs)
+
+    # bind search tools FIRST (before structured output)
+    # Note: with_structured_output() returns RunnableSequence which doesn't have bind_tools()
+    llm = llm.bind_tools([get_web_search_tool()])
+
+    # Apply structured output AFTER binding tools
     if structured_output:
         llm = llm.with_structured_output(structured_output)
 
@@ -128,9 +135,12 @@ async def call_llm_with_retry(
         if fallback_model:
             logger.warning(f"Falling back to {fallback_model}")
             llm_fallback = create_llm(fallback_model, **kwargs)
+            # bind tools first, then structured output
+            llm_fallback = llm_fallback.bind_tools([get_web_search_tool()])
             if structured_output:
                 llm_fallback = llm_fallback.with_structured_output(structured_output)
             try:
+                model_usage.add_model_usage(fallback_model)
                 return await _invoke_with_retry(llm_fallback, prompt)
             except Exception as fallback_error:
                 logger.error(f"Fallback model {fallback_model} also failed: {fallback_error}")
