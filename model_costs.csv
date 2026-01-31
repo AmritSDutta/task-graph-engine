@@ -14,10 +14,10 @@ gemma3:27b-cloud,0.011
 glm-4.6:cloud,0.02
 gpt-oss:20b-cloud,0.011
 kimi-k2.5:cloud,0.02
-gemini-3-flash-preview:cloud,0.012
+gemini-3-flash-preview:cloud,0.011
 GLM-4.7-Flash,0.011
-GLM-4.5-Flash,0.01
+GLM-4.5-Flash,0.011
 GLM-4.6V-Flash,0.015
-llama-3.3-70b-versatile,0.4
-moonshotai/kimi-k2-instruct,0.012
+llama-3.3-70b-versatile,0.012
+moonshotai/kimi-k2-instruct,0.011
 llama-3.1-8b-instant,0.011
