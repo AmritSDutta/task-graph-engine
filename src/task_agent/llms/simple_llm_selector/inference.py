@@ -93,5 +93,5 @@ async def infer_capabilities(task: str) -> set[Capability]:
 
     except Exception as e:
         # Fallback to informational on any error
-        logging.info(f"Warning: Capability inference failed: {e}")
-        return {"informational"}
+        logging.info(f"Warning: Capability inference failed[{planning_model}]: {e}")
+        return {"reasoning", "informational"}

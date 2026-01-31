@@ -93,7 +93,15 @@ cp .env.example .env
 
 # Start LangGraph dev server
 langgraph dev
+
+# For non-standard LangChain models (community models, z.ai, nvidia, etc.)
+# that use synchronous calls, use --allow-blocking flag:
+langgraph dev --allow-blocking
 ```
+
+> **Note**: Some LangChain community integrations (like `langchain-nvidia-ai-core`, `langchain-community`, `z.ai`) use synchronous HTTP calls internally. The `--allow-blocking` flag prevents LangGraph from throwing warnings about blocking calls in an async context.
+>
+> **Standard models** (OpenAI, Google/Gemini, Groq, Anthropic) work fine without this flag since they support async/await.
 
 Visit http://127.0.0.1:2024 and start planning tasks! 🎉
 

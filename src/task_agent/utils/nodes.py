@@ -122,6 +122,7 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
     except Exception as e:
         logging.error(f"[Planner] Error calling LLM: {e}")
         return Command(update={
+            "task": gbt,
             "messages": AIMessage(f"Error during planning: {e}"),
             "ended_once": True
         }, goto='END')
@@ -131,6 +132,7 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
 
     logging.info(f"[PLANNER] Total TODOs: {len(todos_response.todo_list)}")
     return Command(update={
+        "task": gbt,
         "messages": AIMessage(f"Generated {len(todos_response.todo_list)} TODOs for task: {gbt[:100]}"),
         "todos": todos_response,
         "ended_once": False
@@ -287,4 +289,5 @@ async def call_input_validation(state: TaskState, runtime: Runtime[Context]) -> 
         }, goto="planner")
     else:
         logging.warning(f'[{thread_id}] Input validation failed - malicious content detected')
-        return Command(update={"messages": AIMessage(f"Unsafe user prompt detected: {gbt[:50]}...")}, goto=END)
+        return Command(update={"task": gbt, "messages": AIMessage(f"Unsafe user prompt detected: {gbt[:50]}...")},
+                       goto=END)

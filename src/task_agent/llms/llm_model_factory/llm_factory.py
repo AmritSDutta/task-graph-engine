@@ -12,6 +12,7 @@ from typing import Type
 from langchain_core.language_models import BaseChatModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
+from langchain_community.chat_models import ChatZhipuAI
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
@@ -21,6 +22,7 @@ LLM_REGISTRY: dict[str, Type[BaseChatModel]] = {
     "google": ChatGoogleGenerativeAI,
     "groq": ChatGroq,
     "ollama": ChatOllama,
+    "Zhipu": ChatZhipuAI
 }
 
 
@@ -45,7 +47,10 @@ def resolve_provider(model: str) -> str:
         "chatgpt-": "openai",
         "qwen/": "groq",
         "qwen-": "groq",
-        "glm-": "ollama",
+        "GLM-4.5": "Zhipu",
+        "GLM-4.6V": "Zhipu",
+        "GLM-4.7-Flash": "Zhipu",
+        "glm-4.6:": "ollama",
         "llama": "ollama",
         "gemma": "ollama",
     }
