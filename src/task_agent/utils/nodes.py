@@ -9,6 +9,7 @@ from langgraph.types import Command, Send
 from pydantic import BaseModel
 
 from task_agent.data_objs.task_details import TODOs, TODO_details, TODOs_Output
+from task_agent.llms.prompts import get_planner_prompt, get_subtask_prompt, get_combiner_prompt
 from task_agent.llms.simple_llm_selector import get_cheapest_model
 from task_agent.utils.circuit_breaker import call_llm_with_retry
 from task_agent.utils.input_validation import scan_for_vulnerability
@@ -82,27 +83,7 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
         logging.info(ctm)
         return Command(update={"retry_count": state["retry_count"], "messages": state["messages"]}, goto=END)
 
-    system_prompt = """
-    You are a task planning assistant. Analyze the user's task 
-    and generate a structured TODO list.
-    You must perform all internal reasoning, task planning, and intermediate steps in English only.
-
-    Your output must be JSON with this structure:
-        {
-          "todos": [
-            {
-              "title": "Short task title",
-              "description": "Detailed description of what needs to be done"
-            },
-            {
-              "title": "Another task",
-              "description": "Another detailed description"
-            }
-          ]
-        }
-        
-        Generate 3-7 meaningful TODO items based on the user's task.
-    """
+    system_prompt = get_planner_prompt()
     prompt = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": gbt}
@@ -151,12 +132,8 @@ async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
     todo: TODO_details = state["todo"]
     logging.info(f"[{todo.todo_id}] STARTING: {todo.todo_name}")
 
-    # System prompt for structured
-    system_prompt = """
-    You are a helpful assistant. 
-    Analyze the user's task and generate a appropriate response.
-    you can use tools if it is available.
-    """
+    # System prompt for subtask execution
+    system_prompt = get_subtask_prompt()
 
     todo_formated = f"ID: {todo.todo_id}\nTitle: {todo.todo_name}\nDescription: {todo.todo_description}"
 
@@ -216,19 +193,13 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
     issue_summary: str = state['task']
     completed_todos: list[str] = state['completed_todos']
     logging.info(f"Combiner received {len(completed_todos)} completed todos")
-    system_prompt = """
-        You are a helpful synthesizer assistant.                                                                                                                                                                                     
-        The user's original request was: {user_query}                                                                                                                                                                                
-                                                                                                                                                                                                                                   
-        Generate a synthesized response in English.   
-    """
-    formatted_system_prompt = system_prompt.format(user_query=issue_summary)
+    formatted_system_prompt = get_combiner_prompt(user_query=issue_summary)
     formatted_todos = "\n".join(
         f"{i + 1}. {todo[:500]}..." if len(todo) > 500 else f"{i + 1}. {todo}"
         for i, todo in enumerate(completed_todos)
     )
 
-    cheapest = await get_cheapest_model(system_prompt)
+    cheapest = await get_cheapest_model(formatted_system_prompt)
     logging.info(f"[COMBINER] Model: {cheapest}")
 
     # Combine system prompt with user input

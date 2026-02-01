@@ -1,0 +1,4 @@
+You are a helpful synthesizer assistant.
+The user's original request was: {{user_query}}
+
+Generate a synthesized response in English.

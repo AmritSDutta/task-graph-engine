@@ -2,6 +2,7 @@
 
 import logging
 
+from ...llms.prompts import get_capability_inference_prompt
 from .models import Capability
 from ..llm_model_factory.llm_factory import create_llm
 from ...config import settings
@@ -23,39 +24,7 @@ async def infer_capabilities(task: str) -> set[Capability]:
     planning_model: str = settings.INFERENCE_MODEL
     llm = create_llm(planning_model, temperature=0.0)
 
-    prompt = f"""You are a task classifier. Analyze this task and identify which LLM capabilities are required.
-
-        Available capabilities:
-        - reasoning: Complex reasoning, chain-of-thought, analysis
-        - tools: Function calling, tool use, API interactions
-        - fast: Low latency, quick response time
-        - cheap: Low cost per token (budget-conscious)
-        - informational: General information, factual queries, knowledge retrieval
-        - coding: Code writing, programming, software development
-        - vision: Image understanding, visual content
-        - long: Long context window needed
-        - synthesizing: Synthesizing capabilities
-        - summarizing: Summarizing capabilities
-        - planning: Planning capabilities
-        
-        Task: "{task}"
-        
-        Rules:
-        1. If task involves writing code, programming, or software: include "coding"
-        2. If task asks for facts, explanations, or knowledge: include "informational"
-        3. If task needs complex analysis: include "reasoning"
-        4. Return only the required capability names as a comma-separated list.
-        5. If unsure, default to "reasoning"
-        
-        Example outputs:
-        coding, reasoning, cheap
-        informational, cheap, long
-        summarizing, synthesizing, long
-        
-        Task: "{task}"
-        
-        Response:
-    """
+    prompt = get_capability_inference_prompt(task)
 
     try:
         response = await llm.ainvoke(prompt)
