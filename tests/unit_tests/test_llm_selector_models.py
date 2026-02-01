@@ -255,11 +255,12 @@ class TestCodingModelPriority:
 
     def test_coding_model_priority_order_is_maintained(self):
         """Test that the priority order is as expected."""
-        assert CODING_MODEL_PRIORITY[0] == "kimi-k2.5:cloud"
-        assert CODING_MODEL_PRIORITY[1] == "qwen3-coder:480b-cloud"
-        assert CODING_MODEL_PRIORITY[2] == "glm-4.6:cloud"
-        assert CODING_MODEL_PRIORITY[3] == "gemini-2.5-pro"
-        assert CODING_MODEL_PRIORITY[4] == "gemini-2.5-flash"
+        assert CODING_MODEL_PRIORITY[0] == "deepseek-v3:671b-cloud"
+        assert CODING_MODEL_PRIORITY[1] == "kimi-k2.5:cloud"
+        assert CODING_MODEL_PRIORITY[2] == "qwen3-coder:480b-cloud"
+        assert CODING_MODEL_PRIORITY[3] == "glm-4.6:cloud"
+        assert CODING_MODEL_PRIORITY[4] == "gemini-2.5-pro"
+        assert CODING_MODEL_PRIORITY[5] == "gemini-2.5-flash"
 
     def test_coding_model_priority_no_duplicates(self):
         """CODING_MODEL_PRIORITY should not have duplicate entries."""
