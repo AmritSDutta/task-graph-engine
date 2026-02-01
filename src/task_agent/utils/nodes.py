@@ -9,7 +9,8 @@ from langgraph.types import Command, Send
 from pydantic import BaseModel
 
 from task_agent.data_objs.task_details import TODOs, TODO_details, TODOs_Output
-from task_agent.llms.prompts import get_planner_prompt, get_subtask_prompt, get_combiner_prompt
+from task_agent.llms.prompts import get_planner_prompt, get_subtask_prompt, get_combiner_prompt, \
+    get_combiner_prompt_only
 from task_agent.llms.simple_llm_selector import get_cheapest_model
 from task_agent.utils.circuit_breaker import call_llm_with_retry
 from task_agent.utils.input_validation import scan_for_vulnerability
@@ -193,13 +194,14 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
     issue_summary: str = state['task']
     completed_todos: list[str] = state['completed_todos']
     logging.info(f"Combiner received {len(completed_todos)} completed todos")
-    formatted_system_prompt = get_combiner_prompt(user_query=issue_summary)
+    system_prompt = get_combiner_prompt_only()
+    formatted_system_prompt = system_prompt.format(user_query=issue_summary)
     formatted_todos = "\n".join(
         f"{i + 1}. {todo[:500]}..." if len(todo) > 500 else f"{i + 1}. {todo}"
         for i, todo in enumerate(completed_todos)
     )
 
-    cheapest = await get_cheapest_model(formatted_system_prompt)
+    cheapest = await get_cheapest_model(system_prompt)
     logging.info(f"[COMBINER] Model: {cheapest}")
 
     # Combine system prompt with user input

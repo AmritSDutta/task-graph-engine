@@ -61,6 +61,39 @@ gpt-4o-mini,0.035
 - Relative: Current directory (`./config/costs.csv`)
 - Absolute: Docker mount (`/app/config/costs.csv`)
 
+#### 📝 **External Prompt System** 🆕
+All system prompts are stored as external `.prompt` files - no code changes needed:
+```bash
+src/task_agent/llms/prompts/
+├── planner.prompt              # Task planning prompt
+├── subtask.prompt              # Worker node prompt
+├── combiner.prompt             # Synthesizer with {{user_query}} template
+└── capability_inference.prompt # Capability classifier with {{task}} template
+```
+
+**Usage**:
+```python
+from task_agent.llms.prompts import (
+    get_planner_prompt,
+    get_combiner_prompt,
+    list_available_prompts
+)
+
+# List all prompts
+print(list_available_prompts())
+# ['capability_inference', 'combiner', 'planner', 'subtask']
+
+# Use prompts
+planner = get_planner_prompt()
+combiner = get_combiner_prompt(user_query="Analyze market trends")
+```
+
+**Benefits**:
+- Non-technical team can edit prompts directly
+- Git version control for all changes
+- Easy A/B testing by swapping files
+- Template variables with `{{variable}}` syntax
+
 #### 🔄 **Two-Step Structured Output**
 LLMs hate complex nested schemas. So we trick them:
 ```python
@@ -311,6 +344,7 @@ The actual flow is:
 - **`nodes.py`**: Node functions (entry, planner, subtask, combiner, input validation)
 - **`llm_factory.py`**: Multi-provider model creation
 - **`simple_llm_selector/`**: Capability inference + routing
+- **`prompts/`**: External prompt files with template variables
 - **`state.py`**: TypedDict state management
 - **`task_details.py`**: Pydantic models for TODOs
 - **`circuit_breaker.py`**: Retry logic with fallback models
@@ -346,7 +380,7 @@ pytest -m '' tests/end_to_end/
 pytest tests/unit_tests/test_combiner.py -v
 ```
 
-**Test Stats**: 🧪 299 test cases, covering edge cases like special characters, long inputs, model resolution logic, and CSV path resolution.
+**Test Stats**: 🧪 343 test cases, covering edge cases like special characters, long inputs, model resolution logic, CSV path resolution, and prompt loading/formatting.
 
 ---
 
@@ -398,9 +432,10 @@ docker run -e OPENAI_API_KEY=xxx \
 
 1. **Async Everywhere** - Why block when you can await? ⏳
 2. **Type Safety** - TypedDict + Pydantic = fewer runtime surprises 🎯
-3. **Logging Over Print** - Structured logs with thread IDs 📝
-4. **Simplicity Wins** - Two-step transformation over complex schemas 🎭
-5. **Capability Inference** - Let AI figure out what AI you need 🤖
+3. **External Prompts** - Edit system prompts without touching code 📝
+4. **Logging Over Print** - Structured logs with thread IDs 📝
+5. **Simplicity Wins** - Two-step transformation over complex schemas 🎭
+6. **Capability Inference** - Let AI figure out what AI you need 🤖
 
 ---
 
@@ -456,6 +491,39 @@ response: AIMessage = await call_llm_with_retry(
 - Response type and content length
 - Warnings for empty content or tool calls
 - Error messages if the response format is unexpected
+
+### External Prompt System
+
+All system prompts are stored as `.prompt` files in `src/task_agent/llms/prompts/` for easy editing without code changes.
+
+**Available Prompts**:
+- `planner.prompt` - Task planning system prompt
+- `subtask.prompt` - Worker node prompt
+- `combiner.prompt` - Synthesizer with `{{user_query}}` template variable
+- `capability_inference.prompt` - Capability classifier with `{{task}}` template variable
+
+**Editing Prompts**:
+```bash
+# Edit a prompt file directly
+vim src/task_agent/llms/prompts/combiner.prompt
+
+# Changes take effect on next run (no restart needed for langgraph dev)
+```
+
+**Adding New Prompts**:
+1. Create `your_prompt.prompt` in `src/task_agent/llms/prompts/`
+2. Use `{{variable}}` syntax for template parameters
+3. Use `get_prompt("your_prompt", variable="value")` in code
+
+**Example Prompt File**:
+```
+You are a {{role}} assistant for {{domain}}.
+
+Guidelines:
+{{guidelines}}
+
+Task: {{task}}
+```
 
 ---
 

@@ -188,6 +188,14 @@ def get_capability_inference_prompt(task: str) -> str:
     return get_prompt("capability_inference", task=task)
 
 
+def get_combiner_prompt_only() -> str:
+    """Get the combiner prompt template with user query formatted.
+    Returns:
+        combiner prompt
+    """
+    return get_prompt("combiner")
+
+
 __all__ = [
     "load_prompt_template",
     "format_prompt",
@@ -197,4 +205,5 @@ __all__ = [
     "get_subtask_prompt",
     "get_combiner_prompt",
     "get_capability_inference_prompt",
+    "get_combiner_prompt_only",
 ]
