@@ -1,5 +1,6 @@
 model,cost
 gpt-4o,5.0
+qwen3-vl:235b-instruct-cloud,0.010
 gpt-4o-mini,0.035
 gpt-5-mini,1.5
 gpt-5-nano,0.015

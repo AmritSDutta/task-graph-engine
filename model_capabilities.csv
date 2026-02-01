@@ -1,5 +1,6 @@
 model,reasoning,tools,fast,cheap,informational,coding,vision,long,synthesizing,summarizing,planning
 gpt-4o,True,True,True,False,True,True,True,True,False,False
+qwen3-vl:235b-instruct-cloud,True,True,True,True,False,False,True,False,False,False
 gpt-4o-mini,True,True,True,True,True,True,False,False,False,False
 gpt-5-mini,True,True,True,True,True,True,True,False,False,False
 gpt-5-nano,False,True,True,True,False,False,True,False,True,True
@@ -12,12 +13,12 @@ qwen/qwen3-32b,True,True,True,True,True,False,False,False,False,False
 gemini-3-flash-preview:cloud,True,True,True,True,True,False,True,True,False,False
 qwen3-coder:480b-cloud,True,True,False,True,True,True,False,False,False,False
 gemma3:27b-cloud,True,True,True,True,True,False,True,True,True,True
-glm-4.6:cloud,True,True,False,False,True,True,True,True,True,True
+glm-4.6:cloud,True,True,False,False,True,True,False,True,True,True
 gpt-oss:20b-cloud,True,True,False,True,False,False,False,True,False,False,False
-kimi-k2.5:cloud,True,True,False,True,True,True,True,True,True,True
-GLM-4.5-Flash,True,True,True,True,True,False,True,False,False,False
+kimi-k2.5:cloud,True,True,False,True,True,True,False,True,True,True
+GLM-4.5-Flash,True,True,True,True,True,False,False,False,False,False
 GLM-4.6V-Flash,True,True,True,True,True,False,True,False,False,False
-GLM-4.7-Flash,True,True,True,True,True,False,True,False,False,False
+GLM-4.7-Flash,True,True,True,True,True,False,False,False,False,False
 llama-3.3-70b-versatile,True,True,True,False,True,True,True,True,True,True,True
 llama-3.1-8b-instant,True,True,True,True,True,False,False,False,True,True,False
-deepseek-v3.1:671b-cloud,True,True,False,True,True,True,True,True,True,True,True
+deepseek-v3.1:671b-cloud,True,True,False,True,True,True,False,True,True,True,True
