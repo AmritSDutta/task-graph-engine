@@ -242,9 +242,22 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
             cheapest,
             prompt,
             fallback_model="gpt-4o-mini",
-            temperature=0.0
+            temperature=0.0,
+            bind_tools_flag=False  # Don't bind tools for combiner
         )
-        final_output = response.content
+        # Check if response has tool calls (when bind_tools is used)
+        if hasattr(response, 'tool_calls') and response.tool_calls:
+            logging.warning(f"[COMBINER] Response contains tool calls instead of text: {response.tool_calls}")
+            # For combiner, we want text output, not tool calls
+            final_output = str(response.tool_calls)
+        else:
+            final_output = response.content
+
+        logging.info(f"[COMBINER] Response type: {type(response)}, content type: {type(final_output)}, content length: {len(final_output) if final_output else 0}")
+        if not final_output:
+            logging.error(f"[COMBINER] Empty final_output. Response: {response}, has content attr: {hasattr(response, 'content')}")
+            if hasattr(response, 'content'):
+                logging.error(f"[COMBINER] response.content value: {repr(response.content)}")
     except Exception as e:
         logging.error(f"[COMBINER] Error calling LLM: {e}")
         return Command(update={
@@ -253,6 +266,7 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
         }, goto=END)
 
     if not final_output:
+        logging.warning(f"[COMBINER] No final output generated! response.content was empty. Response type: {type(response)}")
         return Command(update={"messages": state["messages"]}, goto=END)
     duration = time.time() - start
     logging.info("=" * 60)

@@ -112,10 +112,7 @@ cp .env.example .env
 # Edit .env with your API keys
 
 # Start LangGraph dev server
-langgraph dev
-
-# For non-standard LangChain models (community models, z.ai, nvidia, etc.)
-# that use synchronous calls, use --allow-blocking flag:
+# Use --allow-blocking for community models (z.ai, nvidia, etc.)
 langgraph dev --allow-blocking
 ```
 
@@ -123,7 +120,111 @@ langgraph dev --allow-blocking
 >
 > **Standard models** (OpenAI, Google/Gemini, Groq, Anthropic) work fine without this flag since they support async/await.
 
-Visit http://127.0.0.1:2024 and start planning tasks! 🎉
+**Server URLs**:
+- API: http://127.0.0.1:2024
+- Interactive Docs: http://127.0.0.1:2024/docs
+- LangSmith Studio: https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
+
+---
+
+## 🌐 REST API
+
+The server includes a REST API with both LangGraph core endpoints and custom endpoints for monitoring and configuration.
+
+### Base URL
+```
+http://127.0.0.1:2024
+```
+
+### Available Endpoints
+
+#### Custom Endpoints (`/api/*`)
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/` | API information | No |
+| GET | `/api/health` | Health check and system info | No |
+| GET | `/api/models` | List all models with capabilities & costs | Optional |
+| GET | `/api/models/{model_name}` | Get details for specific model | Optional |
+| GET | `/api/statistics` | Runtime statistics (model usage, costs) | Optional |
+| GET | `/api/config` | Current configuration settings | Optional |
+
+#### LangGraph Core Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/ok` | Health check |
+| `/runs` | Create and manage runs |
+| `/threads` | Thread management |
+| `/assistants` | Assistant configuration |
+| `/docs` | Interactive API documentation (Scalar) |
+
+### Authentication
+
+Protected endpoints require API key authentication when enabled:
+
+```bash
+# Set in .env file
+API_KEY=your-secret-api-key-here
+REQUIRE_AUTH=true
+```
+
+**Usage**:
+```bash
+# Without auth (REQUIRE_AUTH=false or not set)
+curl http://127.0.0.1:2024/api/models
+
+# With auth (REQUIRE_AUTH=true)
+curl -H "Authorization: Bearer your-secret-api-key-here" \
+  http://127.0.0.1:2024/api/models
+```
+
+### Example Responses
+
+**Health Check**:
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "auth_required": false,
+  "models_loaded": 22
+}
+```
+
+**List Models**:
+```json
+{
+  "count": 22,
+  "models": {
+    "gpt-4o-mini": {
+      "capabilities": ["cheap", "coding", "fast", "informational", "reasoning", "tools"],
+      "cost": 0.035,
+      "is_coding_priority": false
+    },
+    "qwen3-coder:480b-cloud": {
+      "capabilities": ["cheap", "coding", "informational", "reasoning", "tools"],
+      "cost": 0.013,
+      "is_coding_priority": true
+    }
+  }
+}
+```
+
+**Statistics** (after some usage):
+```json
+{
+  "cost_spreading_factor": 0.03,
+  "total_models_with_usage": 2,
+  "models": {
+    "llama-3.3-70b-versatile": {
+      "usage_count": 3,
+      "base_cost": 0.012,
+      "derived_cost": 0.0131,
+      "penalty_factor": 1.0917
+    }
+  }
+}
+```
 
 ---
 
@@ -214,6 +315,7 @@ The actual flow is:
 - **`task_details.py`**: Pydantic models for TODOs
 - **`circuit_breaker.py`**: Retry logic with fallback models
 - **`input_validation.py`**: Scanning for potentially malicious content
+- **`webapp.py`**: Custom FastAPI app with REST API endpoints (`/api/*`)
 
 ---
 
@@ -269,6 +371,10 @@ COST_SPREADING_FACTOR=0.03
 # Optional (CSV file paths - supports absolute, relative, or filename)
 MODEL_COST_CSV_PATH=model_costs.csv
 MODEL_CAPABILITY_CSV_PATH=model_capabilities.csv
+
+# Optional (API authentication for protected endpoints)
+API_KEY=your-secret-api-key-here
+REQUIRE_AUTH=false
 ```
 
 **CSV Path Resolution** 🆴:
@@ -300,17 +406,65 @@ docker run -e OPENAI_API_KEY=xxx \
 
 ## 🚧 Current Limitations
 
-- **No Exponential Backoff**: Basic `retry_count` tracking but no exponential backoff yet
 - **Local Models Only**: Ollama requires running models locally (no remote API)
 - **E2E Tests Skipped**: End-to-end tests need API keys to run (marked as skip by default)
 
 ---
 
+## 🔍 Troubleshooting & Monitoring
+
+### EXECUTION SUMMARY Logging
+
+The most important log line to monitor is the **EXECUTION SUMMARY**. This confirms that the user received a synthesized response.
+
+**What to look for in logs**:
+```
+2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:256 | [COMBINER] Response type: <class 'langchain_core.messages.ai.AIMessage'>, content type: <class 'str'>, content length: 2727
+2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:272 | ============================================================
+2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:273 | EXECUTION SUMMARY: : why there is current gold price surge , generate brief report
+2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:274 | Total TODOs: 5
+2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:275 | Combiner execution time: 22.14s
+2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:276 | ============================================================
+```
+
+**If EXECUTION SUMMARY is NOT logged**, the user did NOT receive the response. This typically happens when:
+- The LLM returned tool calls instead of text content
+- `response.content` was empty even though tokens were generated
+- The combiner exited early without setting the `final_report`
+
+**Technical Details**:
+
+The system uses web search tools for subtasks that may need current information. However, the combiner must synthesize text responses, not make tool calls. To handle this:
+
+1. **Default behavior**: `call_llm_with_retry()` binds web search tools to all LLM calls
+2. **Combiner exception**: The combiner passes `bind_tools_flag=False` to skip tool binding
+3. **Result**: Combiner always receives text content that can be logged and returned to the user
+
+**Implementation** (`src/task_agent/utils/nodes.py`):
+```python
+# Combiner explicitly skips tool binding
+response: AIMessage = await call_llm_with_retry(
+    cheapest,
+    prompt,
+    fallback_model="gpt-4o-mini",
+    temperature=0.0,
+    bind_tools_flag=False  # Don't bind tools for combiner
+)
+```
+
+**Debug logging** includes:
+- Response type and content length
+- Warnings for empty content or tool calls
+- Error messages if the response format is unexpected
+
+---
+
 ## 🗺️ Roadmap
 
+- [x] **Circuit Breakers**: Retry logic with exponential backoff for LLM API failures ✅
+- [x] **Cost Tracking**: Token usage and cost logging per task 💰
+- [x] **REST API**: Custom endpoints for monitoring and configuration 🌐
 - [ ] **Multi-Agent Evaluation**: Implement `CombinedPlan` for parallel agent evaluation
-- [ ] **Circuit Breakers**: Add resilience patterns for LLM API failures
-- [ ] **Cost Tracking**: Log token usage and costs per task 💰
 - [ ] **Docker Support**: Containerize for easy deployment 🐳
 - [ ] **Monitoring**: OpenTelemetry metrics and tracing 📊
 - [ ] **Rate Limiting**: Per-user quotas to prevent bill shock 🛡️

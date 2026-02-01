@@ -9,6 +9,7 @@ from task_agent.utils.model_live_usage import get_model_usage_singleton, ModelLi
 from task_agent.utils.tools import get_web_search_tool
 
 logger = logging.getLogger(__name__)
+# Circuit breaker with retry logic for LLM calls
 
 
 def _extract_token_usage(response: AIMessage) -> dict | None:
@@ -94,6 +95,7 @@ async def call_llm_with_retry(
         prompt,
         fallback_model: str | None = None,
         structured_output=None,
+        bind_tools_flag: bool = True,
         **kwargs
 ) -> AIMessage:
     """Call LLM with retry logic, fallback model support, timing, and logging.
@@ -103,6 +105,7 @@ async def call_llm_with_retry(
         prompt: The prompt to send to the LLM
         fallback_model: Optional fallback model if primary fails (e.g., 'gpt-4o')
         structured_output: Optional Pydantic schema for structured output
+        bind_tools_flag: Whether to bind web search tools (default: True)
         **kwargs: Additional arguments to pass to create_llm (e.g., temperature=0.0)
 
     Returns:
@@ -117,7 +120,8 @@ async def call_llm_with_retry(
 
     # bind search tools FIRST (before structured output)
     # Note: with_structured_output() returns RunnableSequence which doesn't have bind_tools()
-    llm = llm.bind_tools([get_web_search_tool()])
+    if bind_tools_flag:
+        llm = llm.bind_tools([get_web_search_tool()])
 
     # Apply structured output AFTER binding tools
     if structured_output:
@@ -136,7 +140,8 @@ async def call_llm_with_retry(
             logger.warning(f"Falling back to {fallback_model}")
             llm_fallback = create_llm(fallback_model, **kwargs)
             # bind tools first, then structured output
-            llm_fallback = llm_fallback.bind_tools([get_web_search_tool()])
+            if bind_tools_flag:
+                llm_fallback = llm_fallback.bind_tools([get_web_search_tool()])
             if structured_output:
                 llm_fallback = llm_fallback.with_structured_output(structured_output)
             try:

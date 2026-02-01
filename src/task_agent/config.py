@@ -42,6 +42,16 @@ class Settings(BaseSettings):
           -v /host/config:/app/config task-graph-engine
     """
 
+    # API Authentication
+    API_KEY: str = ""
+    """API key for protected endpoints.
+    If empty and REQUIRE_AUTH=true, all requests will be rejected.
+    Set via API_KEY env var."""
+
+    REQUIRE_AUTH: bool = False
+    """Whether to require authentication for protected endpoints.
+    Set via REQUIRE_AUTH=true env var."""
+
 
 # Global settings instance
 settings = Settings()

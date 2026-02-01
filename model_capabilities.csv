@@ -19,5 +19,5 @@ GLM-4.5-Flash,True,True,True,True,True,False,True,False,False,False
 GLM-4.6V-Flash,True,True,True,True,True,False,True,False,False,False
 GLM-4.7-Flash,True,True,True,True,True,False,True,False,False,False
 llama-3.3-70b-versatile,True,True,True,False,True,True,True,True,True,True,True
-moonshotai/kimi-k2-instruct,True,True,True,True,True,False,True,True,True,True,False
 llama-3.1-8b-instant,True,True,True,True,True,False,False,False,True,True,False
+deepseek-v3:671b-cloud,True,True,False,True,True,True,True,True,True,True,True
