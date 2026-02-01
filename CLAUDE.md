@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A **LangGraph-based task planning system** that uses intelligent LLM selection to process user tasks. The system dynamically selects the most appropriate model based on task requirements and cost optimization using a factory pattern for multi-provider model creation.
 
-**Tech Stack**: LangGraph, LangChain, OpenAI Agents SDK, Google GenAI, Groq, Ollama, Tavily (web search), Pydantic, pytest, FastAPI
+**Tech Stack**: LangGraph, LangChain, OpenAI Agents SDK, Google GenAI, Groq, Ollama, Tavily (web search), Pydantic, pytest, FastAPI, Streamlit
 
 **Architecture Pattern**: Fan-out/fan-in parallel task execution with capability-based model inference, exponential cost penalty for load balancing, and circuit breaker retry logic.
 
@@ -16,6 +16,7 @@ A **LangGraph-based task planning system** that uses intelligent LLM selection t
 - LLM-based capability inference for automatic model selection
 - Input validation pipeline with pattern-based detection and optional moderation API
 - Custom REST API with authentication support alongside LangGraph core endpoints
+- **Text-only** Streamlit UI for task submission
 
 ## Development Commands
 
@@ -77,9 +78,20 @@ curl http://127.0.0.1:2024/api/health
 
 Note: Runs with `temporary: true` (default) are cleaned up after completion and will return 404 when queried later.
 
+### Streamlit UI
+```bash
+# Start LangGraph server first (in one terminal)
+langgraph dev
+
+# Start Streamlit UI (in another terminal)
+streamlit run ui/app.py
+```
+
+The UI is **text-only** - images are not processed. Access at http://localhost:8501
+
 ### Custom REST API
 
-The server includes a custom FastAPI app (`webapp.py`) that provides additional REST endpoints alongside the LangGraph core API.
+The server includes a custom FastAPI app (`src/webapp.py`) that provides additional REST endpoints alongside the LangGraph core API.
 
 **Base URL**: `http://127.0.0.1:2024`
 
@@ -109,43 +121,6 @@ REQUIRE_AUTH=true
 # Test protected endpoint
 curl -H "Authorization: Bearer your-secret-api-key-here" \
   http://127.0.0.1:2024/api/models
-```
-
-**Example Responses**:
-
-```bash
-# Health check
-curl http://127.0.0.1:2024/api/health
-# {"status":"healthy","version":"1.0.0","auth_required":false,"models_loaded":15}
-
-# List models (with auth if enabled)
-curl -H "Authorization: Bearer your-key" http://127.0.0.1:2024/api/models | jq
-# {
-#   "count": 15,
-#   "models": {
-#     "gpt-4o-mini": {
-#       "capabilities": ["reasoning", "tools", "fast", "cheap", "informational", "coding"],
-#       "cost": 0.035,
-#       "is_coding_priority": false
-#     },
-#     ...
-#   }
-# }
-
-# Get statistics (with auth if enabled)
-curl -H "Authorization: Bearer your-key" http://127.0.0.1:2024/api/statistics | jq
-# {
-#   "cost_spreading_factor": 0.03,
-#   "total_models_with_usage": 3,
-#   "models": {
-#     "gpt-4o-mini": {
-#       "usage_count": 5,
-#       "base_cost": 0.035,
-#       "derived_cost": 0.0405,
-#       "penalty_factor": 1.1576
-#     }
-#   }
-# }
 ```
 
 ## Architecture
@@ -178,6 +153,7 @@ START → entry → should_continue → input_validator → planner → assign_w
 - `Send()` objects enable parallel processing of subtasks
 - Circuit breaker pattern with retry logic for LLM failures
 - Token usage tracking and execution timing
+- **Text-only input**: Messages are processed as text using `get_buffer_string()`
 
 ### Core Components
 
@@ -185,14 +161,16 @@ START → entry → should_continue → input_validator → planner → assign_w
 - Defines LangGraph state machine with entry, input_validator, planner, subtask, combiner nodes
 - Uses `TaskState` for state management and `Context` for runtime configuration
 - Entry point referenced in `langgraph.json` as `./src/task_agent/graph.py:graph`
-- LangSmith tracing is enabled via `LANGSMITH_TRACING_V2='true'` (see line 14 of graph.py)
+- LangSmith tracing is enabled via `LANGSMITH_TRACING_V2='true'`
 - Logging is configured via `setup_logging()` call on import
 
 **2. Node Functions (`src/task_agent/utils/nodes.py`)**
 - `entry_node()`: Checks if thread already ended via `ended_once` flag; initializes empty `todos` if not present
 - `should_continue()`: Conditional edge function that routes to END or input_validator
-- `input_validator_node()`: Validates user input for malicious content using `scan_for_vulnerability()`
+- `call_input_validation()`: Validates user input for malicious content using `scan_for_vulnerability()`
 - `call_planner_model()`: **Async function** that selects cheapest model, generates structured TODOs, marks thread as ended
+  - Uses `get_buffer_string()` to extract text from messages
+  - Does NOT process images - text-only mode
 - `assign_workers()`: Creates `Send()` objects for each TODO to enable parallel processing
 - `call_subtask_model()`: Processes individual TODOs with model selection and retry logic
 - `call_combiner_model()`: Synthesizes completed TODOs into final report
@@ -236,6 +214,7 @@ with patch("task_agent.utils.input_validation.settings") as mock_settings:
   - Reraises exceptions after retries exhausted
   - Supports fallback model if primary model fails
   - Tracks model usage via `ModelLiveUsage` singleton for cost penalty calculation
+  - `bind_tools_flag`: Controls web search tool binding (default True, set False for combiner)
 - Handles both `usage_metadata` (LangChain 0.1+) and `response_metadata` (older style)
 
 **5. State Management (`src/task_agent/utils/state.py`)**
@@ -260,7 +239,7 @@ Uses a registry + resolver pattern for model creation:
 **Factory function**: `create_llm(model: str, **kwargs) -> BaseChatModel`
 
 **Supported Models**:
-- OpenAI: gpt-4o, gpt-4o-mini, gpt-5-mini, gpt-5-nano, gpt-4.1-nano
+- OpenAI: gpt-4o-mini, gpt-5-mini, gpt-5-nano, gpt-4.1-nano
 - Google: gemini-2.5-flash, gemini-2.5-flash-lite, gemini-2.5-pro, gemini-3-flash-preview:cloud
 - Groq: qwen/qwen-2.5-72b-instruct, qwen/qwen3-32b
 - Ollama (cloud): qwen3-coder:480b-cloud, gemma3:27b-cloud, glm-4.6:cloud, kimi-k2.5:cloud, gpt-oss:20b-cloud
@@ -277,12 +256,12 @@ ollama pull kimi-k2.5
 ollama pull gpt-oss:20b
 ```
 
-**11. Tools (`src/task_agent/utils/tools.py`)**
+**7. Tools (`src/task_agent/utils/tools.py`)**
 - `get_web_search_tool()`: Returns TavilySearch instance for web search capabilities
 - Used for LLM tool binding when models need web search functionality
 - Configured with max_results=5 and topic="general"
 
-**7. Simplified LLM Selector (`src/task_agent/llms/simple_llm_selector/`)**
+**8. Simplified LLM Selector (`src/task_agent/llms/simple_llm_selector/`)**
 Uses LLM-based capability inference for model selection. **All LLM calls are async.**
 
 *Architecture:*
@@ -311,11 +290,12 @@ Model capabilities and costs are loaded from CSV files in the project root:
 - **planning**: Task planning
 
 *Coding Model Priority (in order):*
-1. `kimi-k2.5:cloud`
-2. `qwen3-coder:480b-cloud`
-3. `glm-4.6:cloud`
-4. `gemini-2.5-pro`
-5. `gemini-2.5-flash`
+1. `deepseek-v3.1:671b-cloud`
+2. `kimi-k2.5:cloud`
+3. `qwen3-coder:480b-cloud`
+4. `glm-4.6:cloud`
+5. `gemini-2.5-pro`
+6. `gemini-2.5-flash`
 
 *Usage (must be async):*
 ```python
@@ -339,13 +319,13 @@ asyncio.run(main())
 
 **Important**: All selector functions are async. When calling from non-async code, use `asyncio.run()` or `await` within an async context.
 
-**8. Business Objects (`src/task_agent/data_objs/`)**
+**9. Business Objects (`src/task_agent/data_objs/`)**
 - **task_details.py**: Defines TODO structures for task planning
   - `TODOs_Output`: Holds execution results (`output`, `model_used`, `execution_time`) - all fields have default empty strings
   - `TODO_details`: Individual TODO with `todo_id`, `todo_name`, `todo_description`, `todo_completed`, `output`
   - `TODOs`: Container with `todo_list` array of `TODO_details` and `thread_id`
 
-**9. External Prompt System (`src/task_agent/llms/prompts/`)**
+**10. External Prompt System (`src/task_agent/llms/prompts/`)**
 All system prompts are stored as external `.prompt` files for easy editing, versioning, and collaboration.
 
 *Architecture:*
@@ -404,27 +384,7 @@ formatted = format_prompt(template, user_query="test query")
 3. Import and use `get_prompt("your_prompt_name")` in code
 4. No code changes needed in the loader module
 
-*Example Prompt File Structure:*
-```
-You are a {{role}} assistant that helps users with {{domain}}.
-
-Context: {{context}}
-
-Task: {{task}}
-```
-
-*Testing:*
-```python
-# Test file: tests/unit_tests/test_prompt_loading.py
-# 39 test cases covering:
-# - Loading prompts from files
-# - Template variable formatting
-# - Error handling for missing prompts
-# - Convenience functions
-# - Prompt content validation
-```
-
-**9. Model Live Usage (`src/task_agent/utils/model_live_usage.py`)**
+**11. Model Live Usage (`src/task_agent/utils/model_live_usage.py`)**
 Tracks model usage counts for cost spreading via exponential penalty:
 - `ModelLiveUsage`: Core class tracking usage counts per model via `defaultdict`
 - `ModelLiveUsageSingleton`: Thread-safe singleton ensuring single usage tracker instance
@@ -435,7 +395,7 @@ Tracks model usage counts for cost spreading via exponential penalty:
 - `get_model_usage(model_names)`: Returns usage counts (note: parameter name is plural but accepts single string in implementation)
 - Singleton pattern ensures consistent tracking across all graph nodes
 
-**10. Router with Cost Penalty (`src/task_agent/llms/simple_llm_selector/router.py`)**
+**12. Router with Cost Penalty (`src/task_agent/llms/simple_llm_selector/router.py`)**
 Implements exponential cost penalty for load balancing:
 ```python
 derived_cost = base_cost * exp(COST_SPREADING_FACTOR * model_usage.get_model_usage(model))
@@ -521,14 +481,14 @@ docker run -e OPENAI_API_KEY=xxx \
 - **Environment**: Uses `.env` file
 - **Graph name**: `"agent"` (referenced in LangGraph CLI)
 - **Dependency**: Links to `.` (current project) for import resolution
-- **Custom HTTP App**: `./webapp.py:app` - FastAPI application with custom REST endpoints
+- **Custom HTTP App**: `./src/webapp.py:app` - FastAPI application with custom REST endpoints
 
 **FastAPI WebApp (`src/webapp.py`)**:
 The LangGraph server integrates a custom FastAPI application that provides additional endpoints beyond the LangGraph core API:
 - Endpoints are mounted at the root URL (`http://127.0.0.1:2024`)
 - LangGraph core endpoints are mounted at `/langgraph/*`
 - Protected endpoints support Bearer token authentication
-- See "Custom REST API" section below for available endpoints
+- See "Custom REST API" section above for available endpoints
 
 ### Key Design Patterns
 
@@ -547,6 +507,7 @@ The LangGraph server integrates a custom FastAPI application that provides addit
 13. **Input Validation Pipeline**: Pattern-based detection + keyword context analysis + optional LLM moderation API
 14. **Cost-Based Load Balancing**: Exponential penalty on frequently-used models promotes distribution across similar-capability models
 15. **Tool Binding**: LLMs can be bound with tools like web search via `llm.bind_tools([get_web_search_tool()])`
+16. **Text-Only Processing**: The system currently processes text-only input; images are NOT supported
 
 ### Common Issues
 
@@ -581,7 +542,7 @@ The LangGraph server integrates a custom FastAPI application that provides addit
 
 **Input Validation Mocking in Tests**: When testing functions that call `scan_for_vulnerability()`, you must mock both `settings.MODERATION_API_CHECK_REQ` and `get_LLM_feedback_on_input()` to avoid real API calls. See the test file for examples.
 
-**Cost Spreading Formula**: The router applies an exponential penalty to model costs based on usage: `derived_cost = base_cost × exp(COST_SPREADING_FACTOR × usage_count)`. This promotes load balancing - as a model is used more, its effective cost increases, making other models relatively more attractive. The `COST_SPREADING_FACTOR` (default 0.03, not 0.01 as documented elsewhere) controls how aggressively the penalty ramps up.
+**Cost Spreading Formula**: The router applies an exponential penalty to model costs based on usage: `derived_cost = base_cost × exp(COST_SPREADING_FACTOR × usage_count)`. This promotes load balancing - as a model is used more, its effective cost increases, making other models relatively more attractive. The `COST_SPREADING_FACTOR` (default 0.03) controls how aggressively the penalty ramps up.
 
 **Web Search Tool Binding**: When adding tool support to LLMs in the circuit breaker, use `llm.bind_tools([get_web_search_tool()])` to enable web search capabilities. This requires `TAVILY_API_KEY` in the environment. The tool is defined in `src/task_agent/utils/tools.py` and uses `langchain_tavily`.
 
@@ -656,3 +617,9 @@ response: AIMessage = await call_llm_with_retry(
 - Path traversal: `../../../etc/passwd`, `..\..\..\`
 - Docker abuse: `docker run`, `docker exec`, `--privileged`
 - And many more patterns defined in `input_validation.py`
+
+**Text-Only Processing**: The current implementation processes text-only input:
+- `get_buffer_string()` extracts text from messages in `call_planner_model()`
+- No image detection or processing is implemented
+- UI (`ui/app.py`) only accepts text input
+- Vision capability exists in model capabilities but is not actively used
