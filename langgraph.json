@@ -7,7 +7,7 @@
   "env": ".env",
   "image_distro": "wolfi",
   "http": {
-    "app": "./webapp.py:app",
+    "app": "./src/webapp.py:app",
     "configurable_headers": {
       "includes": ["x-thread-id"]
     }

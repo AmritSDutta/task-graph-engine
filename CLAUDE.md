@@ -6,9 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A **LangGraph-based task planning system** that uses intelligent LLM selection to process user tasks. The system dynamically selects the most appropriate model based on task requirements and cost optimization using a factory pattern for multi-provider model creation.
 
-**Tech Stack**: LangGraph, LangChain, OpenAI Agents SDK, Google GenAI, Groq, Ollama, Tavily (web search), Pydantic, pytest
+**Tech Stack**: LangGraph, LangChain, OpenAI Agents SDK, Google GenAI, Groq, Ollama, Tavily (web search), Pydantic, pytest, FastAPI
 
 **Architecture Pattern**: Fan-out/fan-in parallel task execution with capability-based model inference, exponential cost penalty for load balancing, and circuit breaker retry logic.
+
+**Key Features**:
+- CSV-based model configuration (add/update models without code changes)
+- External prompt system (edit `.prompt` files directly)
+- LLM-based capability inference for automatic model selection
+- Input validation pipeline with pattern-based detection and optional moderation API
+- Custom REST API with authentication support alongside LangGraph core endpoints
 
 ## Development Commands
 
@@ -50,6 +57,12 @@ langgraph dev --allow-blocking  # Use for community models (z.ai, nvidia, etc.)
 The server will start at http://127.0.0.1:2024 with Studio UI at https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
 
 **Important**: Use `--allow-blocking` flag when using LangChain community integrations (like `langchain-nvidia-ai-core`, `langchain-community`, `z.ai`) that use synchronous HTTP calls internally. This prevents LangGraph from throwing warnings about blocking calls in an async context. Standard providers (OpenAI, Google/Gemini, Groq, Anthropic) work fine without this flag.
+
+**When to use `--allow-blocking`**:
+- Using Zhipu (z.ai) models via `langchain-community`
+- Using NVIDIA models via `langchain-nvidia-ai-core`
+- Any other community integration that doesn't support async/await
+- **Not needed** for OpenAI, Google, Groq, Anthropic (they support native async)
 
 **Testing the API**:
 ```bash
@@ -146,11 +159,19 @@ START → entry → should_continue → input_validator → planner → assign_w
 **Current Implementation**: The graph implements a fan-out/fan-in pattern:
 - **entry**: Checks if thread is already closed (`ended_once` flag). If closed, returns message to use new thread.
 - **should_continue**: Conditional edge - returns END if closed, otherwise routes to "input_validator"
-- **input_validator**: Scans input for malicious content using pattern matching and optional LLM moderation API
+- **input_validator**: Scans input for malicious content using pattern matching and optional LLM moderation API. Raises `ValueError` if malicious content detected, which terminates execution.
 - **planner**: Uses `get_cheapest_model()` to select optimal LLM, generates structured TODOs
 - **assign_workers**: Fan-out node that creates parallel tasks for each TODO via `Send()`
 - **subtask**: Worker node that processes individual TODOs with model selection
 - **combiner**: Fan-in node that synthesizes all completed TODOs into final report
+
+**Execution Flow**:
+1. User input enters through `entry` node
+2. If thread hasn't ended, routes to `input_validator` for security check
+3. If input is safe, `planner` generates TODO list
+4. `assign_workers` fans out to parallel `subtask` nodes (one per TODO)
+5. All `subtask` nodes complete and route to `combiner`
+6. `combiner` synthesizes results and routes to `END`
 
 **Execution Details**:
 - Uses `Command` objects to return state updates and routing targets
@@ -164,7 +185,8 @@ START → entry → should_continue → input_validator → planner → assign_w
 - Defines LangGraph state machine with entry, input_validator, planner, subtask, combiner nodes
 - Uses `TaskState` for state management and `Context` for runtime configuration
 - Entry point referenced in `langgraph.json` as `./src/task_agent/graph.py:graph`
-- Disables LangSmith tracing via environment variable
+- LangSmith tracing is enabled via `LANGSMITH_TRACING_V2='true'` (see line 14 of graph.py)
+- Logging is configured via `setup_logging()` call on import
 
 **2. Node Functions (`src/task_agent/utils/nodes.py`)**
 - `entry_node()`: Checks if thread already ended via `ended_once` flag; initializes empty `todos` if not present
@@ -499,6 +521,14 @@ docker run -e OPENAI_API_KEY=xxx \
 - **Environment**: Uses `.env` file
 - **Graph name**: `"agent"` (referenced in LangGraph CLI)
 - **Dependency**: Links to `.` (current project) for import resolution
+- **Custom HTTP App**: `./webapp.py:app` - FastAPI application with custom REST endpoints
+
+**FastAPI WebApp (`src/webapp.py`)**:
+The LangGraph server integrates a custom FastAPI application that provides additional endpoints beyond the LangGraph core API:
+- Endpoints are mounted at the root URL (`http://127.0.0.1:2024`)
+- LangGraph core endpoints are mounted at `/langgraph/*`
+- Protected endpoints support Bearer token authentication
+- See "Custom REST API" section below for available endpoints
 
 ### Key Design Patterns
 
@@ -619,3 +649,10 @@ response: AIMessage = await call_llm_with_retry(
 - **Convenience functions**: `get_planner_prompt()`, `get_subtask_prompt()`, `get_combiner_prompt(user_query)`, `get_capability_inference_prompt(task)`
 - **List available**: `list_available_prompts()` returns all prompt names
 - **Error handling**: `FileNotFoundError` raised if prompt file doesn't exist (includes available prompts in error message)
+
+**Input Validation Error Handling**: The `input_validator` node raises `ValueError` when malicious content is detected. This exception is not caught by LangGraph, causing execution to terminate with the error message. This is intentional - the system fails closed for security. Common malicious patterns detected include:
+- Shell injection: `rm -rf`, `sudo`, `|`, `>`, `<` in command context
+- SQL injection: `DROP TABLE`, `DELETE FROM`, `'; DROP`
+- Path traversal: `../../../etc/passwd`, `..\..\..\`
+- Docker abuse: `docker run`, `docker exec`, `--privileged`
+- And many more patterns defined in `input_validation.py`

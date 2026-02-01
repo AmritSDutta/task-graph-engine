@@ -11,7 +11,7 @@ from task_agent.utils.nodes import call_planner_model, entry_node, should_contin
 from task_agent.utils.state import Context, TaskState
 
 setup_logging()
-os.environ["LANGSMITH_TRACING_V2"] = 'false'
+os.environ["LANGSMITH_TRACING_V2"] = 'true'
 
 # this name is mentioned in langgraph.json
 graph = (

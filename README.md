@@ -158,6 +158,98 @@ langgraph dev --allow-blocking
 - Interactive Docs: http://127.0.0.1:2024/docs
 - LangSmith Studio: https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
 
+### Docker Deployment
+
+For production or containerized environments, you can use Docker:
+
+#### Option 1: Docker Compose (Recommended)
+
+```bash
+# Copy environment template and configure
+cp .env.example .env
+# Edit .env with your API keys
+
+# Start the container
+docker-compose up -d
+
+# View logs
+docker-compose logs -f task-graph
+
+# Stop the container
+docker-compose down
+```
+
+#### Option 2: Docker Build & Run
+
+```bash
+# Build the image
+docker build -t task-graph-engine .
+
+# Run the container with API keys
+docker run -d \
+  --name task-graph-engine \
+  -p 2024:2024 \
+  -e OPENAI_API_KEY=sk-... \
+  -e GOOGLE_API_KEY=AIza... \
+  task-graph-engine
+
+# View logs
+docker logs -f task-graph-engine
+
+# Stop the container
+docker stop task-graph-engine && docker rm task-graph-engine
+```
+
+#### Custom Model Configuration
+
+To use custom model configuration files:
+
+```bash
+# Using docker-compose
+# Uncomment the volumes section in docker-compose.yml
+volumes:
+  - ./config/model_costs.csv:/app/model_costs.csv:ro
+  - ./config/model_capabilities.csv:/app/model_capabilities.csv:ro
+
+# Or using docker run
+docker run -d \
+  --name task-graph-engine \
+  -p 2024:2024 \
+  -e OPENAI_API_KEY=sk-... \
+  -e GOOGLE_API_KEY=AIza... \
+  -v $(pwd)/config/model_costs.csv:/app/model_costs.csv:ro \
+  -v $(pwd)/config/model_capabilities.csv:/app/model_capabilities.csv:ro \
+  task-graph-engine
+```
+
+#### Docker Environment Variables
+
+All environment variables from `.env.example` can be passed to Docker:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OPENAI_API_KEY` | Yes | - | OpenAI API key |
+| `GOOGLE_API_KEY` | Yes | - | Google API key |
+| `ANTHROPIC_API_KEY` | No | - | Anthropic API key |
+| `TAVILY_API_KEY` | No | - | Tavily web search API key |
+| `INFERENCE_MODEL` | No | `kimi-k2.5:cloud` | Default inference model |
+| `MODERATION_API_CHECK_REQ` | No | `true` | Enable LLM moderation API |
+| `COST_SPREADING_FACTOR` | No | `0.03` | Load balancing penalty factor |
+| `API_KEY` | No | - | API authentication key |
+| `REQUIRE_AUTH` | No | `false` | Enable endpoint authentication |
+
+#### Health Check
+
+The Docker container includes a built-in health check:
+
+```bash
+# Check container health
+docker ps
+
+# Manual health check
+curl http://localhost:2024/api/health
+```
+
 ---
 
 ## 🌐 REST API
@@ -349,7 +441,7 @@ The actual flow is:
 - **`task_details.py`**: Pydantic models for TODOs
 - **`circuit_breaker.py`**: Retry logic with fallback models
 - **`input_validation.py`**: Scanning for potentially malicious content
-- **`webapp.py`**: Custom FastAPI app with REST API endpoints (`/api/*`)
+- **`src/webapp.py`**: Custom FastAPI app with REST API endpoints (`/api/*`)
 
 ---
 
