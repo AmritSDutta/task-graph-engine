@@ -16,4 +16,4 @@ Your output must be JSON with this structure:
       ]
     }
 
-    Generate 3-7 meaningful TODO items based on the user's task.
+    Generate 3-10 meaningful TODO items based on the user's task.

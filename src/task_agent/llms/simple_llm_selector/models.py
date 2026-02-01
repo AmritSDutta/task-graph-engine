@@ -144,7 +144,7 @@ MODEL_CAPABILITIES: dict[str, set[Capability]] = _load_model_capabilities_from_c
 
 # Preferred models for coding tasks (in priority order)
 CODING_MODEL_PRIORITY = [
-    "deepseek-v3:671b-cloud",
+    "deepseek-v3.1:671b-cloud",
     "kimi-k2.5:cloud",
     "qwen3-coder:480b-cloud",
     "glm-4.6:cloud",
