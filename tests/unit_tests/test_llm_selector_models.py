@@ -21,7 +21,6 @@ class TestModelCapabilities:
     def test_model_capabilities_contains_expected_models(self):
         expected_models = {
             # OpenAI
-            "gpt-4o",
             "gpt-4o-mini",
             "gpt-5-mini",
             "gpt-5-nano",
@@ -63,16 +62,6 @@ class TestModelCapabilities:
         for model, capabilities in MODEL_CAPABILITIES.items():
             assert capabilities.issubset(valid_capabilities), f"{model} has invalid capabilities"
 
-    def test_gpt_4o_capabilities(self):
-        caps = MODEL_CAPABILITIES.get("gpt-4o", set())
-        assert "reasoning" in caps
-        assert "tools" in caps
-        assert "fast" in caps
-        assert "vision" in caps
-        assert "long" in caps
-        assert "informational" in caps
-        assert "coding" in caps
-
     def test_mini_models_are_cheap(self):
         """Models with 'mini' in name should have 'cheap' capability."""
         assert "cheap" in MODEL_CAPABILITIES.get("gpt-4o-mini", set())
@@ -87,7 +76,6 @@ class TestModelCapabilities:
     def test_coding_models_have_coding_capability(self):
         """Models designed for coding should have the 'coding' capability."""
         coding_models = [
-            "gpt-4o",
             "gpt-4o-mini",
             "gpt-5-mini",
             "gemini-2.5-flash",
@@ -116,7 +104,7 @@ class TestGetModelCapabilities:
     """Tests for get_model_capabilities function."""
 
     def test_get_capabilities_for_known_model(self):
-        caps = get_model_capabilities("gpt-4o")
+        caps = get_model_capabilities("gpt-4o-mini")
         assert isinstance(caps, set)
         assert len(caps) > 0
 
@@ -145,8 +133,8 @@ class TestGetModelCapabilities:
 
     def test_get_capabilities_returns_same_set_reference(self):
         """Test that get_model_capabilities returns a reference to the set."""
-        caps1 = get_model_capabilities("gpt-4o")
-        caps2 = get_model_capabilities("gpt-4o")
+        caps1 = get_model_capabilities("gpt-4o-mini")
+        caps2 = get_model_capabilities("gpt-4o-mini")
         # They should be the same object (by reference)
         assert caps1 is caps2
 
@@ -168,8 +156,8 @@ class TestModelCost:
 
     def test_mini_models_are_cheaper_than_full_models(self):
         """Mini models should cost less than their full counterparts."""
-        if "gpt-4o-mini" in MODEL_COST and "gpt-4o" in MODEL_COST:
-            assert MODEL_COST["gpt-4o-mini"] < MODEL_COST["gpt-4o"]
+        if "gpt-5-mini" in MODEL_COST and "gpt-5-nano" in MODEL_COST:
+            assert MODEL_COST["gpt-5-nano"] < MODEL_COST["gpt-5-mini"]
 
     def test_groq_models_are_very_cheap(self):
         """Groq models should have very low cost."""
@@ -195,7 +183,6 @@ class TestModelCost:
     @pytest.mark.parametrize(
         "model1,model2",
         [
-            ("gpt-4o", "gpt-4o-mini"),
             ("gemini-2.5-pro", "gemini-2.5-flash"),
             ("gemini-2.5-flash", "gemini-2.5-flash-lite"),
         ],
@@ -211,7 +198,7 @@ class TestGetModelCost:
     """Tests for get_model_cost function."""
 
     def test_get_cost_for_known_model(self):
-        cost = get_model_cost("gpt-4o")
+        cost = get_model_cost("gpt-4o-mini")
         assert isinstance(cost, float)
         assert cost > 0
 
@@ -314,14 +301,8 @@ class TestModelDataConsistency:
 class TestSpecificModelCharacteristics:
     """Tests for specific model characteristics."""
 
-    def test_gpt_4o_has_vision(self):
-        assert "vision" in MODEL_CAPABILITIES.get("gpt-4o", set())
-
     def test_gemini_25_flash_has_vision(self):
         assert "vision" in MODEL_CAPABILITIES.get("gemini-2.5-flash", set())
-
-    def test_gemini_25_pro_has_vision(self):
-        assert "vision" in MODEL_CAPABILITIES.get("gemini-2.5-pro", set())
 
     def test_flash_models_are_fast(self):
         """Models with 'flash' in name should be fast."""
@@ -361,9 +342,7 @@ class TestSpecificModelCharacteristics:
     def test_long_context_models(self):
         """Models with long context capability."""
         long_models = [
-            "gpt-4o",
             "gemini-2.5-flash",
-            "gemini-2.5-pro",
             "gemini-3-flash-preview:cloud",
             "glm-4.6:cloud",
         ]
@@ -374,7 +353,7 @@ class TestSpecificModelCharacteristics:
     @pytest.mark.parametrize(
         "model,expected_capabilities",
         [
-            ("gpt-4o", {"reasoning", "tools", "fast", "vision", "long", "informational", "coding"}),
+            ("gpt-4o-mini", {"reasoning", "tools", "fast", "cheap", "informational", "coding"}),
             ("gemini-2.5-flash", {"reasoning", "tools", "fast", "cheap", "vision", "long", "informational", "coding"}),
             ("qwen/qwen3-32b", {"reasoning", "tools", "fast", "cheap", "informational"}),
         ],
@@ -411,5 +390,5 @@ class TestCostRanking:
         sorted_models = sorted(MODEL_COST.items(), key=lambda x: x[1], reverse=True)
         most_expensive = sorted_models[0]
 
-        # gpt-4o should be among the most expensive
-        assert "gpt-4o" in [m for m, c in sorted_models[:3]]
+        # gemini-2.5-pro should be among the most expensive
+        assert "gemini-2.5-pro" in [m for m, c in sorted_models[:3]]

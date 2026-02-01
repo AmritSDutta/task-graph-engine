@@ -71,6 +71,32 @@ src/task_agent/llms/prompts/
 └── capability_inference.prompt # Capability classifier with {{task}} template
 ```
 
+#### 👁️ **Multimodal Image Analysis** 🆕
+Support for analyzing images through vision-capable LLMs:
+- **Automatic Detection**: System detects images in messages
+- **Vision-Aware Routing**: Selects models with vision capability when images are present
+- **Multiple Formats**: JPEG, PNG, GIF, WebP up to 20MB
+- **Base64 Encoding**: Images encoded as data URLs for LLM consumption
+- **Streamlit UI**: Web interface for easy image upload and testing
+
+**Supported Vision Models**:
+| Model | Provider | Cost |
+|-------|----------|------|
+| `gemini-2.5-flash-lite` | Google | Cheapest |
+| `gemini-2.5-flash` | Google | Low |
+| `gpt-4o-mini` | OpenAI | Medium |
+| `gpt-4o` | OpenAI | High |
+| `gemini-2.5-pro` | Google | High |
+
+**Usage**:
+```python
+# Multimodal message with text and image
+content = [
+    {"type": "text", "text": "Describe this image"},
+    {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}
+]
+```
+
 **Usage**:
 ```python
 from task_agent.llms.prompts import (
@@ -445,6 +471,60 @@ The actual flow is:
 
 ---
 
+## 🖥️ Streamlit Web UI
+
+A user-friendly web interface for testing the Task Graph Engine with support for both text-only queries and multimodal image analysis.
+
+### Features
+
+- **Text Queries**: Submit tasks and questions in natural language
+- **Image Upload**: Attach images (JPEG, PNG, GIF, WebP) for vision model analysis
+- **Real-time Progress**: Watch task execution with live status updates
+- **Model Info**: View available models and their capabilities
+- **Thread Management**: Create new threads or continue conversations
+- **Results Display**: Clean presentation of final reports with execution details
+
+### Running the UI
+
+```bash
+# 1. Start the LangGraph server (in one terminal)
+langgraph dev
+
+# 2. Start the Streamlit UI (in another terminal)
+streamlit run ui/app.py
+```
+
+**Access the UI**: http://localhost:8501
+
+### Using the Image Analysis Feature
+
+1. **Enter your message** in the text area (e.g., "Analyze this image and describe what you see")
+2. **Upload an image** using the file uploader (supports JPEG, PNG, GIF, WebP up to 20MB)
+3. **Click "Run Analysis"** to submit your request
+4. **Watch the progress** as the system:
+   - Creates a thread
+   - Detects the image and selects a vision-capable model
+   - Plans the analysis with TODOs
+   - Executes parallel subtasks
+   - Synthesizes the final report
+
+### Example Image Analysis Queries
+
+- "Analyze the attached image and describe what you see"
+- "Extract and transcribe any text visible in this image"
+- "What type of chart is shown? Describe the data trends"
+- "Compare the items in this image"
+- "Is there anything unusual or concerning in this image?"
+
+### Screenshot Preview
+
+The UI displays:
+- **Sidebar**: System info, available vision models, supported formats
+- **Main Area**: Split view with message input and image upload
+- **Results**: Final report with expandable execution details
+
+---
+
 ## 🧪 Development
 
 ### Code Quality
@@ -624,6 +704,8 @@ Task: {{task}}
 - [x] **Circuit Breakers**: Retry logic with exponential backoff for LLM API failures ✅
 - [x] **Cost Tracking**: Token usage and cost logging per task 💰
 - [x] **REST API**: Custom endpoints for monitoring and configuration 🌐
+- [x] **Image Analysis**: Multimodal support for vision-capable models 👁️
+- [x] **Streamlit UI**: Web interface for testing with image upload 🖥️
 - [ ] **Multi-Agent Evaluation**: Implement `CombinedPlan` for parallel agent evaluation
 - [ ] **Docker Support**: Containerize for easy deployment 🐳
 - [ ] **Monitoring**: OpenTelemetry metrics and tracing 📊

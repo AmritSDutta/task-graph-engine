@@ -1,0 +1,51 @@
+# Docker Compose for Task Graph Engine
+# Usage:
+#   docker-compose up -d                    # Start services
+#   docker-compose logs -f task-graph       # View logs
+#   docker-compose down                     # Stop services
+
+version: '3.8'
+
+services:
+  task-graph:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: task-graph-engine
+    ports:
+      - "2024:2024"
+    environment:
+      # Required API Keys - replace with your actual keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+
+      # Optional API Keys
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+
+      # Optional Configuration
+      - INFERENCE_MODEL=${INFERENCE_MODEL:-kimi-k2.5:cloud}
+      - MODERATION_API_CHECK_REQ=${MODERATION_API_CHECK_REQ:-true}
+      - COST_SPREADING_FACTOR=${COST_SPREADING_FACTOR:-0.03}
+
+      # CSV Paths (already in container, just showing for reference)
+      - MODEL_COST_CSV_PATH=${MODEL_COST_CSV_PATH:-model_costs.csv}
+      - MODEL_CAPABILITY_CSV_PATH=${MODEL_CAPABILITY_CSV_PATH:-model_capabilities.csv}
+
+      # Optional API Authentication
+      - API_KEY=${API_KEY:-}
+      - REQUIRE_AUTH=${REQUIRE_AUTH:-false}
+
+      # LangGraph
+      - LANGSMITH_TRACING_V2=${LANGSMITH_TRACING_V2:-true}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2024/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Optional: Mount custom CSV files for model configuration
+    # volumes:
+    #   - ./config/model_costs.csv:/app/model_costs.csv:ro
+    #   - ./config/model_capabilities.csv:/app/model_capabilities.csv:ro
