@@ -93,7 +93,7 @@ class TestLLMRegistry:
     """Tests for LLM_REGISTRY configuration."""
 
     def test_registry_contains_expected_providers(self):
-        expected_providers = {"openai", "google", "groq", "ollama", "Zhipu"}
+        expected_providers = {"openai", "google", "groq", "ollama", "Zhipu", "sarvam"}
         assert set(LLM_REGISTRY.keys()) == expected_providers
 
     def test_registry_values_are_chat_model_classes(self):

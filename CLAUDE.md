@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A **LangGraph-based task planning system** that uses intelligent LLM selection to process user tasks. The system dynamically selects the most appropriate model based on task requirements and cost optimization using a factory pattern for multi-provider model creation.
 
-**Tech Stack**: LangGraph, LangChain, OpenAI Agents SDK, Google GenAI, Groq, Ollama, Tavily (web search), Pydantic, pytest, FastAPI, Streamlit
+**Tech Stack**: LangGraph, LangChain, OpenAI Agents SDK, Google GenAI, Groq, Ollama, Sarvam AI, Tavily (web search), Pydantic, pytest, FastAPI, Streamlit
 
 **Architecture Pattern**: Fan-out/fan-in parallel task execution with capability-based model inference, exponential cost penalty for load balancing, and circuit breaker retry logic.
 
@@ -228,12 +228,12 @@ with patch("task_agent.utils.input_validation.settings") as mock_settings:
 Uses a registry + resolver pattern for model creation:
 
 **Registry Pattern**:
-- Maps provider names (`openai`, `google`, `groq`, `ollama`, `Zhipu`) to LangChain constructor classes
+- Maps provider names (`openai`, `google`, `groq`, `ollama`, `Zhipu`, `sarvam`) to LangChain constructor classes
 - `LLM_REGISTRY` dictionary contains provider → constructor mappings
 
 **Resolver Logic** (order matters):
 1. **Suffix check first**: Models containing `cloud` → Ollama (for local deployment)
-2. **Prefix check**: `gpt-` → OpenAI, `gemini-` → Google, `qwen/` or `qwen-` → Groq, `GLM-4.5`/`GLM-4.6V`/`GLM-4.7-Flash` → Zhipu
+2. **Prefix check**: `gpt-` → OpenAI, `gemini-` → Google, `qwen/` or `qwen-` → Groq, `GLM-4.5`/`GLM-4.6V`/`GLM-4.7-Flash` → Zhipu, `sarvam-m` → Sarvam
 3. **Default fallback**: `glm-`, `llama`, `gemma` → Ollama
 
 **Factory function**: `create_llm(model: str, **kwargs) -> BaseChatModel`
@@ -244,6 +244,7 @@ Uses a registry + resolver pattern for model creation:
 - Groq: qwen/qwen-2.5-72b-instruct, qwen/qwen3-32b
 - Ollama (cloud): qwen3-coder:480b-cloud, gemma3:27b-cloud, glm-4.6:cloud, kimi-k2.5:cloud, gpt-oss:20b-cloud
 - Zhipu (z.ai): GLM-4.5-Flash, GLM-4.6V-Flash, GLM-4.7-Flash
+- Sarvam AI: sarvam-m (default inference model)
 
 **Important**: Models with `cloud` suffix require Ollama running locally:
 ```bash
@@ -412,7 +413,7 @@ Configuration is loaded from environment variables via `pydantic-settings`:
 - Required: `OPENAI_API_KEY`, `GOOGLE_API_KEY`
 - Optional: `ANTHROPIC_API_KEY` (if using Anthropic models)
 - Optional: `TAVILY_API_KEY` (if using web search tools)
-- Optional: `INFERENCE_MODEL` (default: `"kimi-k2.5:cloud"`)
+- Optional: `INFERENCE_MODEL` (default: `"sarvam-m"`)
 - Optional: `MODERATION_API_CHECK_REQ` (default: `True`) - Controls whether LLM moderation API is called
 - Optional: `COST_SPREADING_FACTOR` (default: `0.03`) - Controls exponential penalty for model usage
 - Optional: `MODEL_COST_CSV_PATH` (default: `"model_costs.csv"`) - Path to model costs CSV file

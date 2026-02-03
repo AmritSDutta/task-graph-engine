@@ -342,6 +342,7 @@ class TestInferCapabilitiesLLMConfiguration:
         with patch('task_agent.llms.simple_llm_selector.inference.create_llm') as mock_create, \
              patch('task_agent.llms.simple_llm_selector.inference.settings') as mock_settings:
             mock_settings.INFERENCE_MODEL = "test-inference-model"
+            mock_settings.INFERENCE_MAX_RETRY = 3  # Mock as int, not MagicMock
             mock_llm = AsyncMock()
             mock_response = AIMessage(content="reasoning")
             mock_llm.ainvoke.return_value = mock_response
@@ -393,18 +394,20 @@ class TestInferCapabilitiesLogging:
     async def test_infer_logs_error_on_failure(self):
         """Test that errors are logged."""
         with patch('task_agent.llms.simple_llm_selector.inference.create_llm') as mock_create, \
-             patch('task_agent.llms.simple_llm_selector.inference.logging') as mock_logging:
+             patch('task_agent.llms.simple_llm_selector.inference.settings') as mock_settings:
+            mock_settings.INFERENCE_MAX_RETRY = 1  # Set to 1 to avoid infinite loop
             mock_llm = AsyncMock()
             mock_llm.ainvoke.side_effect = Exception("Test error")
             mock_create.return_value = mock_llm
 
-            await infer_capabilities("Test task")
+            with patch('task_agent.llms.simple_llm_selector.inference.logging') as mock_logging:
+                await infer_capabilities("Test task")
 
-            # Verify error was logged
-            assert mock_logging.info.called
-            # Check that warning about failure was logged
-            log_calls = [str(call) for call in mock_logging.info.call_args_list]
-            assert any("Capability inference failed" in str(call) for call in log_calls)
+                # Verify warning was logged
+                assert mock_logging.warning.called
+                # Check that warning about failure was logged
+                log_calls = [str(call) for call in mock_logging.warning.call_args_list]
+                assert any("Capability inference failed" in str(call) for call in log_calls)
 
 
 class TestInferCapabilitiesPromptStructure:

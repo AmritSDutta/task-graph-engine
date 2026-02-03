@@ -30,7 +30,7 @@ class TestLoadPromptTemplate:
         template = load_prompt_template("planner")
         assert isinstance(template, str)
         assert len(template) > 0
-        assert "task planning assistant" in template.lower()
+        assert "task-planning assistant" in template.lower()
         assert "TODO list" in template
 
     def test_load_subtask_prompt(self):
@@ -236,7 +236,7 @@ class TestPromptContent:
     def test_planner_prompt_specifies_todo_count(self):
         """Test that planner prompt specifies TODO count range."""
         prompt = get_planner_prompt()
-        assert "3-10" in prompt or "3" in prompt and "10" in prompt
+        assert "2-10" in prompt or "2" in prompt and "10" in prompt
 
     def test_capability_inference_prompt_has_capability_list(self):
         """Test that capability inference prompt lists all capabilities."""

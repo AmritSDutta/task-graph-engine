@@ -14,7 +14,7 @@ class TestSettingsWithMockedEnv:
     def test_settings_default_values(self):
         """Test that Settings have correct default values."""
         settings = Settings()
-        assert settings.INFERENCE_MODEL == "kimi-k2.5:cloud"
+        assert settings.INFERENCE_MODEL == "sarvam-m"
         assert settings.MODERATION_API_CHECK_REQ is True
         assert settings.COST_SPREADING_FACTOR == 0.03
         assert settings.MODEL_COST_CSV_PATH == "model_costs.csv"
@@ -193,7 +193,7 @@ class TestSettingsDefaults:
         monkeypatch.setenv("GOOGLE_API_KEY", "test-google")
 
         settings = Settings()
-        assert settings.INFERENCE_MODEL == "kimi-k2.5:cloud"
+        assert settings.INFERENCE_MODEL == "sarvam-m"
         assert settings.MODERATION_API_CHECK_REQ is True
         assert settings.COST_SPREADING_FACTOR == 0.03
         assert settings.MODEL_COST_CSV_PATH == "model_costs.csv"
