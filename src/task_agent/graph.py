@@ -5,13 +5,14 @@ import os
 from langgraph.constants import START, END
 from langgraph.graph import StateGraph
 
+from task_agent.config import settings
 from task_agent.logging_config import setup_logging
 from task_agent.utils.nodes import call_planner_model, entry_node, should_continue, call_subtask_model, \
     call_combiner_model, assign_workers, call_input_validation
 from task_agent.utils.state import Context, TaskState
 
 setup_logging()
-os.environ["LANGSMITH_TRACING_V2"] = 'false'
+os.environ["LANGSMITH_TRACING_V2"] = settings.ENABLE_LANGSMITH_TRACING_V2
 
 # this name is mentioned in langgraph.json
 graph = (
