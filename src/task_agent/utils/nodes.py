@@ -128,6 +128,7 @@ async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
        Expects state["decision_id"] injected via Send().
     """
     import time
+    from datetime import date
     start = time.time()
 
     todo: TODO_details = state["todo"]
@@ -135,15 +136,16 @@ async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
 
     # System prompt for subtask execution
     system_prompt = get_subtask_prompt()
-
+    formatted_system_prompt = system_prompt.replace("{{CURRENT_DATE}}", date.today().isoformat())
+    logging.info(f'subtask formatted: {formatted_system_prompt}')
     todo_formated = f"ID: {todo.todo_id}\nTitle: {todo.todo_name}\nDescription: {todo.todo_description}"
 
-    cheapest = await get_cheapest_model(system_prompt)
+    cheapest = await get_cheapest_model(formatted_system_prompt)
     logging.info(f"[{todo.todo_id}] Model: {cheapest}")
 
     # Combine system prompt with user input
     prompt = [
-        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": formatted_system_prompt},
         {"role": "user", "content": todo_formated}
     ]
     try:
@@ -195,7 +197,7 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
     completed_todos: list[str] = state['completed_todos']
     logging.info(f"Combiner received {len(completed_todos)} completed todos")
     system_prompt = get_combiner_prompt_only()
-    formatted_system_prompt = system_prompt.format(user_query=issue_summary)
+    formatted_system_prompt = system_prompt.replace("{{user_query}}", issue_summary)
     formatted_todos = "\n".join(
         f"{i + 1}. {todo[:500]}..." if len(todo) > 500 else f"{i + 1}. {todo}"
         for i, todo in enumerate(completed_todos)
@@ -226,9 +228,12 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
         else:
             final_output = response.content
 
-        logging.info(f"[COMBINER] Response type: {type(response)}, content type: {type(final_output)}, content length: {len(final_output) if final_output else 0}")
+        logging.info(
+            f"[COMBINER] Response type: {type(response)}, content type: {type(final_output)}, "
+            f"content length: {len(final_output) if final_output else 0}")
         if not final_output:
-            logging.error(f"[COMBINER] Empty final_output. Response: {response}, has content attr: {hasattr(response, 'content')}")
+            logging.error(
+                f"[COMBINER] Empty final_output. Response: {response}, has content attr: {hasattr(response, 'content')}")
             if hasattr(response, 'content'):
                 logging.error(f"[COMBINER] response.content value: {repr(response.content)}")
     except Exception as e:
@@ -239,7 +244,8 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
         }, goto=END)
 
     if not final_output:
-        logging.warning(f"[COMBINER] No final output generated! response.content was empty. Response type: {type(response)}")
+        logging.warning(
+            f"[COMBINER] No final output generated! response.content was empty. Response type: {type(response)}")
         return Command(update={"messages": state["messages"]}, goto=END)
     duration = time.time() - start
     logging.info("=" * 60)

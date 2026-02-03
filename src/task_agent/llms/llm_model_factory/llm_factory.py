@@ -15,6 +15,9 @@ from langchain_groq import ChatGroq
 from langchain_community.chat_models import ChatZhipuAI
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
+from sarvam import (
+      SarvamChat,
+  )
 
 # Registry: Provider → LangChain constructor
 LLM_REGISTRY: dict[str, Type[BaseChatModel]] = {
@@ -22,7 +25,8 @@ LLM_REGISTRY: dict[str, Type[BaseChatModel]] = {
     "google": ChatGoogleGenerativeAI,
     "groq": ChatGroq,
     "ollama": ChatOllama,
-    "Zhipu": ChatZhipuAI
+    "Zhipu": ChatZhipuAI,
+    "sarvam": SarvamChat,
 }
 
 
@@ -56,6 +60,7 @@ def resolve_provider(model: str) -> str:
         "glm-": "ollama",  # Must come after specific Zhipu GLM prefixes
         "llama": "ollama",
         "gemma": "ollama",
+        "sarvam-m": "sarvam",
     }
 
     for prefix, provider in prefixes.items():

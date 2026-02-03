@@ -23,10 +23,6 @@ Rules:
 5. If unsure, default to "reasoning"
 
 Example outputs:
-coding, reasoning, cheap
-informational, cheap, long
-summarizing, synthesizing, long
-
-Task: "{{task}}"
-
-Response:
+-coding, reasoning, cheap
+-informational, cheap, long
+-summarizing, synthesizing, long

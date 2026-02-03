@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     )
 
     # Model Configurations
-    INFERENCE_MODEL: str = "kimi-k2.5:cloud"
+    INFERENCE_MODEL: str = "gpt-5-nano"
+    INFERENCE_MAX_RETRY: int = 3
     MODERATION_API_CHECK_REQ: bool = True
     COST_SPREADING_FACTOR: float = 0.03
 
