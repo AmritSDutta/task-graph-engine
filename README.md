@@ -155,24 +155,24 @@ response = await llm.ainvoke(messages)
 ## 🛠️ Installation
 
 ### Prerequisites
-- Python 3.11+
-- API keys for at least one provider (OpenAI, Google, Groq)
-- [Ollama](https://ollama.com) (optional, for local models)
+- Python 3.11+ (if you're on 3.10, we won't tell anyone—but upgrade anyway)
+- API keys for at least one provider (OpenAI, Google, Groq)—the bouncers won't let you in without one
+- [Ollama](https://ollama.com) (optional, for running models locally and feeling like a hacker)
 
 ### Quick Start
 ```bash
 # Clone and install
 git clone https://github.com/yourusername/task-graph-engine.git
 cd task-graph-engine
-pip install -e .
+pip install -e .  # The "-e" stands for "editable", not "evil"
 
 # Copy and configure environment
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env with your API keys (guard them with your life)
 
 # Start LangGraph dev server
 # Use --allow-blocking for community models (z.ai, nvidia, etc.)
-langgraph dev --allow-blocking
+langgraph dev --allow-blocking  # Watch the magic happen
 ```
 
 > **Note**: Some LangChain community integrations (like `langchain-nvidia-ai-core`, `langchain-community`, `z.ai`) use synchronous HTTP calls internally. The `--allow-blocking` flag prevents LangGraph from throwing warnings about blocking calls in an async context.
@@ -530,11 +530,11 @@ The UI displays:
 ### Code Quality
 ```bash
 # Linting (ruff - fast and opinionated)
-ruff check .              # Find problems
-ruff check --fix .        # Fix them automatically
+ruff check .              # Find problems (it will, aggressively)
+ruff check --fix .        # Fix them automatically (like magic, but real)
 
 # Type checking (mypy)
-mypy src/                 # Catch type errors before runtime
+mypy src/                 # Catch type errors before runtime catches you
 ```
 
 ### Testing
@@ -552,7 +552,7 @@ pytest -m '' tests/end_to_end/
 pytest tests/unit_tests/test_combiner.py -v
 ```
 
-**Test Stats**: 🧪 343 test cases, covering edge cases like special characters, long inputs, model resolution logic, CSV path resolution, and prompt loading/formatting.
+**Test Stats**: 🧪 343 test cases covering edge cases like special characters, long inputs, model resolution logic, CSV path resolution, and prompt loading/formatting. That's more test coverage than your ex has commitment issues.
 
 ---
 
@@ -602,19 +602,20 @@ docker run -e OPENAI_API_KEY=xxx \
 
 ## 🎨 Design Philosophy
 
-1. **Async Everywhere** - Why block when you can await? ⏳
-2. **Type Safety** - TypedDict + Pydantic = fewer runtime surprises 🎯
-3. **External Prompts** - Edit system prompts without touching code 📝
-4. **Logging Over Print** - Structured logs with thread IDs 📝
-5. **Simplicity Wins** - Two-step transformation over complex schemas 🎭
-6. **Capability Inference** - Let AI figure out what AI you need 🤖
+1. **Async Everywhere** - Why block when you can await? We're not savages. ⏳
+2. **Type Safety** - TypedDict + Pydantic = fewer runtime surprises (like finding out your "string" was actually a None) 🎯
+3. **External Prompts** - Edit system prompts without touching code. Your PM will thank you. 📝
+4. **Logging Over Print** - Structured logs with thread IDs. `print()` is for scripts, not serious software. 📝
+5. **Simplicity Wins** - Two-step transformation over complex schemas. LLMs have enough trouble with basic instructions; let's not torture them with nested schemas. 🎭
+6. **Capability Inference** - Let AI figure out what AI you need. Inception, but productive. 🤖
 
 ---
 
 ## 🚧 Current Limitations
 
-- **Local Models Only**: Ollama requires running models locally (no remote API)
-- **E2E Tests Skipped**: End-to-end tests need API keys to run (marked as skip by default)
+- **Local Models Only**: Ollama requires running models locally (no remote API)—because the best things in life are worth hosting yourself
+- **E2E Tests Skipped**: End-to-end tests need API keys to run (marked as skip by default)—we'd rather not accidentally spend your rent money on LLM calls
+- **Vision Model Quirks**: Sometimes models see things that aren't there. Like your imagination, but worse.
 
 ---
 
@@ -701,21 +702,21 @@ Task: {{task}}
 
 ## 🗺️ Roadmap
 
-- [x] **Circuit Breakers**: Retry logic with exponential backoff for LLM API failures ✅
-- [x] **Cost Tracking**: Token usage and cost logging per task 💰
-- [x] **REST API**: Custom endpoints for monitoring and configuration 🌐
-- [x] **Image Analysis**: Multimodal support for vision-capable models 👁️
-- [x] **Streamlit UI**: Web interface for testing with image upload 🖥️
-- [ ] **Multi-Agent Evaluation**: Implement `CombinedPlan` for parallel agent evaluation
-- [ ] **Docker Support**: Containerize for easy deployment 🐳
-- [ ] **Monitoring**: OpenTelemetry metrics and tracing 📊
-- [ ] **Rate Limiting**: Per-user quotas to prevent bill shock 🛡️
+- [x] **Circuit Breakers**: Retry logic with exponential backoff for LLM API failures ✅ (because things *will* fail)
+- [x] **Cost Tracking**: Token usage and cost logging per task 💰 (so you know exactly how much this brilliance cost)
+- [x] **REST API**: Custom endpoints for monitoring and configuration 🌐 (API-first, always)
+- [x] **Image Analysis**: Multimodal support for vision-capable models 👁️ (what does this meme *mean*?)
+- [x] **Streamlit UI**: Web interface for testing with image upload 🖥️ (for when you're tired of curl commands)
+- [ ] **Multi-Agent Evaluation**: Implement `CombinedPlan` for parallel agent evaluation (divide and conquer, but make it AI)
+- [ ] **Docker Support**: Containerize for easy deployment 🐳 (works on my machine → works in the container → hopefully works in production)
+- [ ] **Monitoring**: OpenTelemetry metrics and tracing 📊 (because "it's slow" is not a helpful bug report)
+- [ ] **Rate Limiting**: Per-user quotas to prevent bill shock 🛡️ (your wallet will thank us)
 
 ---
 
 ## 📜 License
 
-MIT License - feel free to use this in your own projects!
+MIT License - feel free to use this in your own projects! No credit required, but appreciated (we're watching... just kidding, or are we?)
 
 ---
 
