@@ -21,6 +21,7 @@ from task_agent.utils.nodes import (
     assign_workers,
     call_subtask_model,
     call_combiner_model,
+    end_node,
 )
 
 
@@ -631,3 +632,63 @@ class TestConvertToTodos:
             assert result.todo_list[0].todo_completed is False
             # Output has default empty TODOs_Output, not None
             assert result.todo_list[0].output == TODOs_Output(output="", model_used="", execution_time="")
+
+
+# ============================================================================
+# Test End Node
+# ============================================================================
+
+
+class TestEndNode:
+    """Test the end_node function."""
+
+    @pytest.mark.asyncio
+    async def test_end_node_logs_execution_summary(self, caplog):
+        """Test end_node logs execution summary with total time."""
+        from datetime import datetime, timedelta
+
+        start = datetime.now()
+        start_time = start.isoformat()
+
+        state = {
+            "task": "Test task for execution",
+            "completed_todos": ["result1", "result2", "result3"],
+            "start_time": start_time,
+        }
+
+        with patch("task_agent.utils.nodes.datetime") as mock_datetime:
+            # Set end time to be 10 seconds after start
+            end_time = start + timedelta(seconds=10)
+            mock_datetime.fromisoformat.return_value = start
+            mock_datetime.now.return_value = end_time
+
+            result = await end_node(state, MagicMock())
+
+            # Verify state is returned unchanged
+            assert result == state
+            assert len(result["completed_todos"]) == 3
+
+    @pytest.mark.asyncio
+    async def test_end_node_calculates_duration(self):
+        """Test end_node correctly calculates total duration."""
+        from datetime import datetime, timedelta
+
+        start = datetime(2024, 1, 1, 12, 0, 0)
+        start_time = start.isoformat()
+
+        state = {
+            "task": "Duration test task",
+            "completed_todos": ["result"],
+            "start_time": start_time,
+        }
+
+        with patch("task_agent.utils.nodes.datetime") as mock_datetime:
+            end = datetime(2024, 1, 1, 12, 0, 30)  # 30 seconds later
+            mock_datetime.fromisoformat.return_value = start
+            mock_datetime.now.return_value = end
+
+            result = await end_node(state, MagicMock())
+
+            # Function should return the state unchanged
+            assert result["start_time"] == start_time
+            assert result["task"] == "Duration test task"

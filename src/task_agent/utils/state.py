@@ -26,3 +26,4 @@ class TaskState(TypedDict):
     ended_once: bool
     retry_count: Annotated[int, add]
     input_valid: bool
+    start_time: str

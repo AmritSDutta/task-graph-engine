@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import List
 
 from langchain_core.messages import BaseMessage, convert_to_messages, get_buffer_string, AIMessage
@@ -60,6 +61,7 @@ async def entry_node(state: TaskState):
         todo_to_be_updated.thread_id = thread_id
         state["todos"] = todo_to_be_updated
         state["input_valid"] = False
+        state["start_time"] = datetime.now().isoformat()
 
     return state
 
@@ -250,8 +252,7 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
         return Command(update={"messages": state["messages"]}, goto=END)
     duration = time.time() - start
     logging.info("=" * 60)
-    logging.info(f"EXECUTION SUMMARY: {issue_summary[:100]}")
-    logging.info(f"Total TODOs: {len(completed_todos)}")
+
     logging.info(f"Combiner execution time: {duration:.2f}s")
     logging.info("=" * 60)
 
@@ -298,3 +299,15 @@ async def call_input_validation(state: TaskState, runtime: Runtime[Context]) -> 
 
 async def route_after_validation(state: TaskState) -> str:
     return "planner" if state["input_valid"] else END
+
+
+async def end_node(state: TaskState, runtime: Runtime[Context]):
+    total_start = datetime.fromisoformat(state["start_time"])
+    total_end = datetime.now()
+    total_duration = total_end - total_start
+    logging.info("=" * 60)
+    logging.info(f"EXECUTION SUMMARY: {state['task'][:100]}")
+    logging.info(f"Total TODOs: {len(state['completed_todos'])}")
+    logging.info(f"Total task time: {total_duration.total_seconds():.2f}s")
+    logging.info("=" * 60)
+    return state

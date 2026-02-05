@@ -44,7 +44,9 @@ class TestTaskState:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert state["thread_id"] == "test-thread-123"
@@ -52,6 +54,8 @@ class TestTaskState:
         assert state["final_report"] == ""
         assert state["ended_once"] is False
         assert state["retry_count"] == 0
+        assert state["input_valid"] is False
+        assert state["start_time"] == "2024-01-01T00:00:00"
 
     def test_task_state_with_optional_todo_field(self):
         """TaskState should accept optional todo field."""
@@ -66,7 +70,9 @@ class TestTaskState:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         # todo is optional, so state should be valid without it
@@ -90,7 +96,9 @@ class TestTaskState:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert state["todo"] is not None
@@ -111,7 +119,9 @@ class TestTaskState:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert len(state["messages"]) == 2
@@ -128,7 +138,9 @@ class TestTaskState:
             "completed_todos": ["todo1"],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert isinstance(state["completed_todos"], list)
@@ -144,7 +156,9 @@ class TestTaskState:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 3
+            "retry_count": 3,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert state["retry_count"] == 3
@@ -159,7 +173,9 @@ class TestTaskState:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert isinstance(state["thread_id"], str)
@@ -174,7 +190,9 @@ class TestTaskState:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert isinstance(state["task"], str)
@@ -189,7 +207,9 @@ class TestTaskState:
             "completed_todos": [],
             "final_report": "Task completed successfully",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert isinstance(state["final_report"], str)
@@ -204,7 +224,9 @@ class TestTaskState:
             "completed_todos": [],
             "final_report": "",
             "ended_once": True,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert isinstance(state["ended_once"], bool)
@@ -230,11 +252,49 @@ class TestTaskState:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert isinstance(state["todos"], TODOs)
         assert len(state["todos"].todo_list) == 1
+
+    def test_task_state_input_valid_is_bool(self):
+        """Test that input_valid field is a boolean."""
+        state: TaskState = {
+            "thread_id": "test-thread",
+            "messages": [],
+            "task": "Test task",
+            "todos": TODOs(todo_list=[], thread_id="test-thread"),
+            "completed_todos": [],
+            "final_report": "",
+            "ended_once": False,
+            "retry_count": 0,
+            "input_valid": True,
+            "start_time": "2024-01-01T00:00:00"
+        }
+
+        assert isinstance(state["input_valid"], bool)
+        assert state["input_valid"] is True
+
+    def test_task_state_start_time_is_string(self):
+        """Test that start_time field is a string (ISO format)."""
+        state: TaskState = {
+            "thread_id": "test-thread",
+            "messages": [],
+            "task": "Test task",
+            "todos": TODOs(todo_list=[], thread_id="test-thread"),
+            "completed_todos": [],
+            "final_report": "",
+            "ended_once": False,
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-02-06T12:30:45.123456"
+        }
+
+        assert isinstance(state["start_time"], str)
+        assert "T" in state["start_time"]  # ISO format contains 'T'
 
 
 class TestTaskStateEdgeCases:
@@ -250,7 +310,9 @@ class TestTaskStateEdgeCases:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert state["messages"] == []
@@ -272,7 +334,9 @@ class TestTaskStateEdgeCases:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert len(state["messages"]) == 4
@@ -287,7 +351,9 @@ class TestTaskStateEdgeCases:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert state["task"] == ""
@@ -304,7 +370,9 @@ class TestTaskStateEdgeCases:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert len(state["task"]) == 10000
@@ -319,7 +387,9 @@ class TestTaskStateEdgeCases:
             "completed_todos": ["todo1", "todo2", "todo3"],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert len(state["completed_todos"]) == 3
@@ -336,7 +406,9 @@ class TestTaskStateEdgeCases:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert "API / Integration" in state["task"]
@@ -353,7 +425,9 @@ class TestTaskStateEdgeCases:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert "🔥" in state["task"]
@@ -368,7 +442,9 @@ class TestTaskStateEdgeCases:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert state["retry_count"] == 0
@@ -383,7 +459,9 @@ class TestTaskStateEdgeCases:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 5
+            "retry_count": 5,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert state["retry_count"] == 5
@@ -402,7 +480,9 @@ class TestStateTransitions:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         # Simulate adding todos
@@ -432,7 +512,9 @@ class TestStateTransitions:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         # Simulate adding completed todos (operator.add behavior)
@@ -452,7 +534,9 @@ class TestStateTransitions:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         # Simulate setting ended_once to True
@@ -471,7 +555,9 @@ class TestStateTransitions:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         # Simulate setting final report
@@ -490,7 +576,9 @@ class TestStateTransitions:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 2
+            "retry_count": 2,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         # Simulate incrementing retry count (operator.add behavior)
@@ -524,7 +612,9 @@ class TestStateWithTODOs:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert len(state["todos"].todo_list) == 1
@@ -561,7 +651,9 @@ class TestStateWithTODOs:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert len(state["todos"].todo_list) == 3
@@ -593,7 +685,9 @@ class TestStateWithTODOs:
             "completed_todos": [],
             "final_report": "",
             "ended_once": False,
-            "retry_count": 0
+            "retry_count": 0,
+            "input_valid": False,
+            "start_time": "2024-01-01T00:00:00"
         }
 
         assert state["todos"].todo_list[0].todo_completed is True
