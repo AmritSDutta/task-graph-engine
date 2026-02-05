@@ -443,22 +443,25 @@ asyncio.run(main())
 
 ### Graph Flow
 ```
-┌─────────┐     ┌──────────────┐     ┌──────────────────┐
-│  START  │────▶│    entry     │────▶│ should_continue  │─────────────────┐
-└─────────┘     └──────────────┘     └──────────────────┘                 │
-                     │                       │                            │
-                     │                       ▼                            ▼
-                     │                ┌─────────────────┐           ┌──────────────┐
-                     │                │ input_validator │──────────▶│   planner    │──┐
-                     │                └─────────────────┘           └──────────────┘  │
-                     │                                                              │
-                     │                                                              ▼
-                     └─────────────────────────────────────────────────────────── END  │
-                                                                                      │
-                                                                                      ▼
-┌─────────────────┐     ┌─────────────┐     ┌──────────────┐     ┌──────────────────────┐
-│  assign_workers │────▶│   subtask   │────▶│  combiner    │────▶│        END           │
-└─────────────────┘     └─────────────┘     └──────────────┘     └──────────────────────┘
+┌─────────┐     ┌──────────────┐     ┌──────────────────┐     ┌──────────────────────┐
+│  START  │────▶│    entry     │────▶│ should_continue  │────▶│   input_validator    │
+└─────────┘     └──────────────┘     └──────────────────┘     └──────────────────────┘
+                                                                                │
+                                                                                ▼
+                                                                      ┌─────────────────────┐
+                                                                      │route_after_validation│
+                                                                      └─────────────────────┘
+                                                                                │
+                                                                   ┌────────────┴────────┐
+                                                                   ▼                     ▼
+                                                              ┌─────────┐          ┌─────┐
+                                                              │ planner │          │ END │
+                                                              └────┬────┘          └─────┘
+                                                                   │
+                                                                   ▼
+┌─────────────────┐     ┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌─────┐
+│  assign_workers │────▶│   subtask   │────▶│  combiner    │────▶│     end      │────▶│ END │
+└─────────────────┘     └─────────────┘     └──────────────┘     └──────────────┘     └─────┘
          │                     │                                       │
          └─────────────────────┼───────────────────────────────────────┘
                                │
@@ -470,17 +473,19 @@ asyncio.run(main())
 ```
 
 The actual flow is:
-1. START → entry node
+1. START → entry node (initializes state, sets start_time)
 2. entry → conditional check with should_continue
-3. If should_continue returns "input_validator", proceed to input validation
-4. input_validator → planner (generates TODOs)
-5. planner → assign_workers (fan-out to multiple subtasks)
-6. Each subtask → combiner (fan-in after all subtasks complete)
-7. combiner → END
+3. If thread not closed → input_validator (security check)
+4. input_validator → route_after_validation (checks input_valid flag)
+5. If valid → planner (generates TODOs), else → END
+6. planner → assign_workers (fan-out to multiple subtasks)
+7. Each subtask → combiner (fan-in after all subtasks complete)
+8. combiner → end (logs execution summary with total time)
+9. end → END
 
 ### Key Components
 - **`graph.py`**: LangGraph state machine definition
-- **`nodes.py`**: Node functions (entry, planner, subtask, combiner, input validation)
+- **`nodes.py`**: Node functions (entry, planner, subtask, combiner, end, input validation, routing)
 - **`llm_factory.py`**: Multi-provider model creation
 - **`simple_llm_selector/`**: Capability inference + routing
 - **`prompts/`**: External prompt files with template variables
@@ -651,22 +656,22 @@ docker run -e OPENAI_API_KEY=xxx \
 
 ### EXECUTION SUMMARY Logging
 
-The most important log line to monitor is the **EXECUTION SUMMARY**. This confirms that the user received a synthesized response.
+The most important log line to monitor is the **EXECUTION SUMMARY**. This confirms that the user received a synthesized response and shows the total execution time.
 
 **What to look for in logs**:
 ```
-2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:256 | [COMBINER] Response type: <class 'langchain_core.messages.ai.AIMessage'>, content type: <class 'str'>, content length: 2727
-2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:272 | ============================================================
-2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:273 | EXECUTION SUMMARY: : why there is current gold price surge , generate brief report
-2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:274 | Total TODOs: 5
-2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:275 | Combiner execution time: 22.14s
-2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:276 | ============================================================
+2026-02-06 12:31:36.024 | INFO | root | nodes.end_node:307 | ============================================================
+2026-02-06 12:31:36.024 | INFO | root | nodes.end_node:308 | EXECUTION SUMMARY: Analyze gold price surge
+2026-02-06 12:31:36.024 | INFO | root | nodes.end_node:309 | Total TODOs: 5
+2026-02-06 12:31:36.024 | INFO | root | nodes.end_node:310 | Total task time: 35.42s
+2026-02-06 12:31:36.024 | INFO | root | nodes.end_node:311 | ============================================================
 ```
 
 **If EXECUTION SUMMARY is NOT logged**, the user did NOT receive the response. This typically happens when:
-- The LLM returned tool calls instead of text content
-- `response.content` was empty even though tokens were generated
+- The input validation failed (malicious content detected)
+- The planner failed to generate TODOs
 - The combiner exited early without setting the `final_report`
+- The graph was terminated before reaching the `end_node`
 
 **Technical Details**:
 

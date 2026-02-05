@@ -128,53 +128,63 @@ curl -H "Authorization: Bearer your-secret-api-key-here" \
 ### Graph Flow
 
 ```
-START → entry → should_continue → input_validator → planner → assign_workers → [subtask → combiner] → END
+START → entry → should_continue → input_validator → route_after_validation → planner → assign_workers → [subtask → combiner → end] → END
 ```
 
-**Current Implementation**: The graph implements a fan-out/fan-in pattern:
-- **entry**: Checks if thread is already closed (`ended_once` flag). If closed, returns message to use new thread.
+**Current Implementation**: The graph implements a fan-out/fan-in pattern with input validation routing:
+- **entry**: Checks if thread is already closed (`ended_once` flag). If closed, returns message to use new thread. Initializes `start_time` with ISO format timestamp.
 - **should_continue**: Conditional edge - returns END if closed, otherwise routes to "input_validator"
-- **input_validator**: Scans input for malicious content using pattern matching and optional LLM moderation API. Raises `ValueError` if malicious content detected, which terminates execution.
+- **input_validator**: Scans input for malicious content using pattern matching and optional LLM moderation API. Sets `input_valid` flag for routing.
+- **route_after_validation**: Conditional edge - routes to "planner" if `input_valid=True`, otherwise to END
 - **planner**: Uses `get_cheapest_model()` to select optimal LLM, generates structured TODOs
 - **assign_workers**: Fan-out node that creates parallel tasks for each TODO via `Send()`
 - **subtask**: Worker node that processes individual TODOs with model selection
 - **combiner**: Fan-in node that synthesizes all completed TODOs into final report
+- **end**: Final node that calculates and logs total execution time
 
 **Execution Flow**:
-1. User input enters through `entry` node
+1. User input enters through `entry` node (initializes `start_time` timestamp)
 2. If thread hasn't ended, routes to `input_validator` for security check
-3. If input is safe, `planner` generates TODO list
-4. `assign_workers` fans out to parallel `subtask` nodes (one per TODO)
-5. All `subtask` nodes complete and route to `combiner`
-6. `combiner` synthesizes results and routes to `END`
+3. `input_validator` sets `input_valid` flag for routing
+4. `route_after_validation` checks `input_valid` flag - routes to `planner` if True, else to END
+5. If input is safe, `planner` generates TODO list
+6. `assign_workers` fans out to parallel `subtask` nodes (one per TODO)
+7. All `subtask` nodes complete and route to `combiner`
+8. `combiner` synthesizes results and routes to `end`
+9. `end` logs execution summary with total time and routes to `END`
 
 **Execution Details**:
 - Uses `Command` objects to return state updates and routing targets
 - `Send()` objects enable parallel processing of subtasks
 - Circuit breaker pattern with retry logic for LLM failures
 - Token usage tracking and execution timing
+- Total execution time tracked from `start_time` to `end_node`
 - **Text-only input**: Messages are processed as text using `get_buffer_string()`
 
 ### Core Components
 
 **1. Graph Definition (`src/task_agent/graph.py`)**
-- Defines LangGraph state machine with entry, input_validator, planner, subtask, combiner nodes
+- Defines LangGraph state machine with entry, input_validator, planner, subtask, combiner, end nodes
 - Uses `TaskState` for state management and `Context` for runtime configuration
 - Entry point referenced in `langgraph.json` as `./src/task_agent/graph.py:graph`
 - LangSmith tracing is enabled via `LANGSMITH_TRACING_V2='true'`
 - Logging is configured via `setup_logging()` call on import
 
 **2. Node Functions (`src/task_agent/utils/nodes.py`)**
-- `entry_node()`: Checks if thread already ended via `ended_once` flag; initializes empty `todos` if not present
+- `entry_node()`: Checks if thread already ended via `ended_once` flag; initializes empty `todos` and sets `start_time` if not present
 - `should_continue()`: Conditional edge function that routes to END or input_validator
-- `call_input_validation()`: Validates user input for malicious content using `scan_for_vulnerability()`
+- `call_input_validation()`: Validates user input for malicious content using `scan_for_vulnerability()`; sets `input_valid` flag
+- `route_after_validation()`: Conditional edge function that routes to planner if `input_valid=True`, else to END
 - `call_planner_model()`: **Async function** that selects cheapest model, generates structured TODOs, marks thread as ended
   - Uses `get_buffer_string()` to extract text from messages
   - Does NOT process images - text-only mode
 - `assign_workers()`: Creates `Send()` objects for each TODO to enable parallel processing
 - `call_subtask_model()`: Processes individual TODOs with model selection and retry logic
 - `call_combiner_model()`: Synthesizes completed TODOs into final report
-- **Important**: Uses a two-step pattern for LLM structured output:
+- `end_node()`: Calculates total execution time and logs final execution summary
+  - Reads `start_time` from state and calculates duration
+  - Logs EXECUTION SUMMARY with task description, TODO count, and total time
+  - **Important**: Uses a two-step pattern for LLM structured output:
   1. Simple Pydantic schema (`SimpleTODOList`) for LLM output (just `title` and `description`)
   2. Transformation function (`convert_to_todos()`) to fill in full `TODOs` structure with `todo_id`, `todo_completed`, `output` fields
   - This approach avoids LLM issues with complex nested schemas and field validation
@@ -219,10 +229,22 @@ with patch("task_agent.utils.input_validation.settings") as mock_settings:
 
 **5. State Management (`src/task_agent/utils/state.py`)**
 - `Context`: TypedDict for configurable runtime parameters
-- `TaskState`: Main state with `thread_id`, `messages`, `task`, `todos`, `retry_count`, `ended_once`, `completed_todos`, `final_report`
-- `todos` field uses `TODOs` Pydantic model from `task_details.py`
+- `TaskState`: Main state with:
+  - `thread_id`: Thread identifier
+  - `messages`: Message history (with `add_messages` reducer)
+  - `task`: User task description
+  - `todos`: TODOs object (Pydantic model from `task_details.py`)
+  - `todo`: Optional individual TODO for subtask processing
+  - `completed_todos`: List of completed TODO outputs (with `operator.add` reducer)
+  - `final_report`: Synthesized final report
+  - `ended_once`: Flag to prevent thread reuse after completion
+  - `retry_count`: Retry counter (with `operator.add` reducer)
+  - `input_valid`: Boolean flag for input validation routing
+  - `start_time`: ISO format timestamp for execution start time
 - Uses `operator.add` for appending to lists via `Annotated` types
 - `ended_once` flag prevents thread reuse after completion
+- `input_valid` flag controls routing after input validation (True → planner, False → END)
+- `start_time` is set by `entry_node` and used by `end_node` to calculate total execution time
 
 **6. LLM Factory (`src/task_agent/llms/llm_model_factory/llm_factory.py`)**
 Uses a registry + resolver pattern for model creation:
@@ -608,51 +630,28 @@ To add new models or update existing ones:
 2. Follow the format: `model,cost` for costs; `model,reasoning,tools,fast,cheap,informational,coding,vision,long,synthesizing,summarizing,planning` for capabilities
 3. The loader functions (`_load_model_capabilities_from_csv()` and `_load_model_costs_from_csv()`) automatically find these files at startup using the path resolution logic in `resolve_csv_path()`
 
-**EXECUTION SUMMARY Logging**: The combiner node logs an "EXECUTION SUMMARY" when it successfully synthesizes all completed subtasks. This is critical for confirming that the user will receive a response.
+**EXECUTION SUMMARY Logging**: The end_node logs an "EXECUTION SUMMARY" when the task completes successfully. This is critical for confirming that the user received a response.
 
 **What the EXECUTION SUMMARY indicates**:
 - User has received the synthesized final report
 - All subtasks completed successfully
-- The combiner received a valid text response (not tool calls)
-- Total execution time for the combiner node
+- Total execution time from start to finish
+- Number of completed TODOs
 
 **What to look for in logs**:
 ```
-2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:256 | [COMBINER] Response type: <class 'langchain_core.messages.ai.AIMessage'>, content type: <class 'str'>, content length: 2727
-2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:272 | ============================================================
-2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:273 | EXECUTION SUMMARY: : why there is current gold price surge , generate brief report
-2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:274 | Total TODOs: 5
-2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:275 | Combiner execution time: 22.14s
-2026-02-01 12:31:36.024 | INFO | root | nodes.call_combiner_model:276 | ============================================================
+2026-02-06 12:31:36.024 | INFO | root | nodes.end_node:307 | ============================================================
+2026-02-06 12:31:36.024 | INFO | root | nodes.end_node:308 | EXECUTION SUMMARY: Analyze gold price surge
+2026-02-06 12:31:36.024 | INFO | root | nodes.end_node:309 | Total TODOs: 5
+2026-02-06 12:31:36.024 | INFO | root | nodes.end_node:310 | Total task time: 35.42s
+2026-02-06 12:31:36.024 | INFO | root | nodes.end_node:311 | ============================================================
 ```
 
 **If EXECUTION SUMMARY is NOT logged**, the user did NOT receive the response. This happens when:
-- The combiner's LLM returned tool calls instead of text content
-- `response.content` was empty even though tokens were generated
+- Input validation failed (malicious content detected)
+- The planner failed to generate TODOs
 - The combiner exited early without setting the `final_report`
-
-**How the fix works**:
-- The `call_llm_with_retry()` function in `circuit_breaker.py` has a `bind_tools_flag: bool = True` parameter
-- By default, ALL LLM calls bind web search tools (for subtasks that may need web search)
-- The combiner explicitly passes `bind_tools_flag=False` to skip tool binding
-- This ensures the combiner always gets text responses instead of tool calls
-
-**Debug logging**:
-If the EXECUTION SUMMARY is missing, check for these log lines:
-- `[COMBINER] Response type: ...` - Shows the response object type and content length
-- `Empty final_output. Response: ...` - Indicates the response had no text content
-- `Response contains tool calls instead of text: ...` - Indicates tool binding issue
-
-**Key implementation detail**: In `src/task_agent/utils/nodes.py`, the combiner calls:
-```python
-response: AIMessage = await call_llm_with_retry(
-    cheapest,
-    prompt,
-    fallback_model="gpt-4o-mini",
-    temperature=0.0,
-    bind_tools_flag=False  # Don't bind tools for combiner
-)
-```
+- The graph was terminated before reaching the `end_node`
 
 **External Prompt System**: All system prompts are stored in `src/task_agent/llms/prompts/` as `.prompt` files:
 - **Edit prompts**: Modify files directly - no code changes needed
