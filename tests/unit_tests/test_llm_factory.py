@@ -186,6 +186,92 @@ class TestCreateLlm:
         assert isinstance(llm, BaseChatModel)
 
 
+class TestOllamaCloudUrl:
+    """Tests for Ollama cloud URL configuration."""
+
+    def test_create_ollama_with_cloud_url_enabled(self, monkeypatch):
+        """Test Ollama models use cloud URL when USE_OLLAMA_CLOUD_URL is True."""
+        # Mock environment variables
+        monkeypatch.setenv("USE_OLLAMA_CLOUD_URL", "true")
+        monkeypatch.setenv("OLLAMA_CLOUD_URL", "https://ollama.example.com")
+        monkeypatch.setenv("OLLAMA_API_KEY", "test-api-key-123")
+
+        # Patch os.getenv to return the test OLLAMA_API_KEY
+        import os
+        original_getenv = os.getenv
+
+        def mock_getenv(key, default=None):
+            if key == "OLLAMA_API_KEY":
+                return "test-api-key-123"
+            return original_getenv(key, default)
+
+        monkeypatch.setattr(os, "getenv", mock_getenv)
+
+        # Reload settings to pick up new environment variables
+        import importlib
+        from task_agent import config
+        importlib.reload(config)
+
+        from task_agent.llms.llm_model_factory import llm_factory
+        importlib.reload(llm_factory)
+
+        # Create an Ollama model (provider == "ollama")
+        llm = llm_factory.create_llm("glm-4.6:cloud", temperature=0.0)
+
+        # Verify the cloud URL configuration was applied
+        assert llm.base_url == "https://ollama.example.com"
+        # Verify client_kwargs contains the auth header
+        assert llm.client_kwargs is not None
+        assert "headers" in llm.client_kwargs
+        assert llm.client_kwargs["headers"]["Authorization"] == "Bearer test-api-key-123"
+
+    def test_create_ollama_with_cloud_url_disabled(self, monkeypatch):
+        """Test Ollama models use default settings when USE_OLLAMA_CLOUD_URL is False."""
+        # Ensure cloud URL is disabled (default)
+        monkeypatch.setenv("USE_OLLAMA_CLOUD_URL", "false")
+
+        # Reload settings
+        import importlib
+        from task_agent import config
+        importlib.reload(config)
+        from task_agent.llms.llm_model_factory import llm_factory
+        importlib.reload(llm_factory)
+
+        # Create an Ollama model - should use default ChatOllama constructor
+        llm = llm_factory.create_llm("glm-4.6:cloud", temperature=0.0)
+        assert llm.model == "glm-4.6:cloud"
+        assert llm.temperature == 0.0
+
+    def test_non_ollama_providers_unaffected_by_cloud_url_setting(self, monkeypatch):
+        """Test that non-Ollama providers are not affected by USE_OLLAMA_CLOUD_URL."""
+        # Enable cloud URL setting
+        monkeypatch.setenv("USE_OLLAMA_CLOUD_URL", "true")
+        monkeypatch.setenv("OLLAMA_CLOUD_URL", "https://ollama.example.com")
+        monkeypatch.setenv("OLLAMA_API_KEY", "test-api-key-123")
+
+        # Reload settings
+        import importlib
+        from task_agent import config
+        importlib.reload(config)
+        from task_agent.llms.llm_model_factory import llm_factory
+        importlib.reload(llm_factory)
+
+        # OpenAI model should work normally
+        openai_llm = llm_factory.create_llm("gpt-4o", temperature=0.5)
+        assert openai_llm.model_name == "gpt-4o"
+        assert openai_llm.temperature == 0.5
+
+        # Google model should work normally
+        google_llm = llm_factory.create_llm("gemini-2.5-flash", temperature=0.0)
+        assert google_llm.model == "gemini-2.5-flash"
+        assert google_llm.temperature == 0.0
+
+        # Groq model should work normally
+        groq_llm = llm_factory.create_llm("qwen/qwen3-32b", temperature=0.7)
+        assert groq_llm.model_name == "qwen/qwen3-32b"
+        assert groq_llm.temperature == 0.7
+
+
 class TestEdgeCases:
     """Tests for edge cases and special scenarios."""
 
