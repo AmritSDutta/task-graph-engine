@@ -150,11 +150,11 @@ class TestCsvPathIntegration:
 
     def test_load_capabilities_with_absolute_path(self, tmp_path):
         """Test loading capabilities from absolute path."""
-        # Create temporary CSV file
+        # Create temporary CSV file with enabled column
         csv_file = tmp_path / "test_caps.csv"
         csv_file.write_text(
-            "model,reasoning,tools,fast,cheap\n"
-            "test-model,True,True,False,True\n"
+            "model,reasoning,tools,fast,cheap,enabled\n"
+            "test-model,True,True,False,True,True\n"
         )
 
         from task_agent.llms.simple_llm_selector.models import (

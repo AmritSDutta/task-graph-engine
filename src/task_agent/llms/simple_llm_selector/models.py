@@ -108,11 +108,18 @@ def _load_model_capabilities_from_csv(csv_path: str | Path | None = None) -> dic
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
+            enabled = row["enabled"] or 'False'
             model_name = row["model"]
+
+            if enabled.lower() == "false" and model_name != settings.FALLBACK_MODEL:
+                # even if fallback models are disabled, it is override the csv details
+                logging.warning(f'{model_name} is: disabled')
+                continue
+
             model_caps: set[Capability] = set()
 
             for cap, value in row.items():
-                if cap == "model":
+                if cap == "model" or cap == 'enabled':
                     continue
                 # Convert "True"/"False" strings to boolean
                 # Handle None or empty values
@@ -136,6 +143,7 @@ def _load_model_capabilities_from_csv(csv_path: str | Path | None = None) -> dic
     else:
         logger.warning(f"⚠️  No model capabilities loaded from {csv_path}")
 
+    logging.info(f'Enabled models: total - {len(capabilities)}, names - {capabilities.keys()}')
     return capabilities
 
 
