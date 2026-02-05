@@ -16,6 +16,7 @@ from task_agent.utils.nodes import (
     entry_node,
     should_continue,
     call_input_validation,
+    route_after_validation,
     call_planner_model,
     assign_workers,
     call_subtask_model,
@@ -168,9 +169,9 @@ class TestCallInputValidation:
                     with patch("task_agent.utils.nodes.scan_for_vulnerability", return_value=True) as mock_scan:
                         result = await call_input_validation(mock_task_state, MagicMock())
 
-                        assert isinstance(result, Command)
-                        assert result.goto == "planner"
-                        assert result.update["task"] == "safe message"
+                        assert isinstance(result, dict)
+                        assert result["input_valid"] is True
+                        assert result["task"] == "safe message"
                         mock_scan.assert_called_once_with("safe message")
 
     @pytest.mark.asyncio
@@ -182,9 +183,9 @@ class TestCallInputValidation:
                     with patch("task_agent.utils.nodes.scan_for_vulnerability", return_value=False) as mock_scan:
                         result = await call_input_validation(mock_task_state, MagicMock())
 
-                        assert isinstance(result, Command)
-                        assert result.goto == END
-                        assert "Unsafe" in result.update["messages"].content
+                        assert isinstance(result, dict)
+                        assert result["input_valid"] is False
+                        assert "Unsafe" in result["messages"].content
                         mock_scan.assert_called_once_with("rm -rf /")
 
     @pytest.mark.asyncio
@@ -197,7 +198,7 @@ class TestCallInputValidation:
                     with patch("task_agent.utils.nodes.get_buffer_string", return_value="test message"):
                         with patch("task_agent.utils.nodes.scan_for_vulnerability", return_value=True):
                             result = await call_input_validation(mock_task_state, MagicMock())
-                            assert result.goto == "planner"
+                            assert result["input_valid"] is True
 
     @pytest.mark.asyncio
     async def test_input_validation_without_moderation_api(self, mock_task_state, mock_config):
@@ -209,7 +210,7 @@ class TestCallInputValidation:
                     with patch("task_agent.utils.nodes.get_buffer_string", return_value="safe message"):
                         with patch("task_agent.utils.nodes.scan_for_vulnerability", return_value=True):
                             result = await call_input_validation(mock_task_state, MagicMock())
-                            assert result.goto == "planner"
+                            assert result["input_valid"] is True
 
     @pytest.mark.asyncio
     async def test_input_validation_empty_messages(self, mock_task_state, mock_config):
@@ -219,8 +220,26 @@ class TestCallInputValidation:
             with patch("task_agent.utils.nodes.convert_to_messages", return_value=[]):
                 result = await call_input_validation(mock_task_state, MagicMock())
 
-                assert isinstance(result, Command)
-                assert result.goto == END
+                assert isinstance(result, dict)
+                assert result["input_valid"] is False
+
+
+class TestRouteAfterValidation:
+    """Test the route_after_validation conditional edge function."""
+
+    @pytest.mark.asyncio
+    async def test_route_to_planner_when_valid(self):
+        """Test route_after_validation routes to planner when input_valid is True."""
+        state = {"input_valid": True}
+        result = await route_after_validation(state)
+        assert result == "planner"
+
+    @pytest.mark.asyncio
+    async def test_route_to_end_when_invalid(self):
+        """Test route_after_validation routes to END when input_valid is False."""
+        state = {"input_valid": False}
+        result = await route_after_validation(state)
+        assert result == END
 
 
 # ============================================================================

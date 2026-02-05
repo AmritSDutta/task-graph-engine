@@ -25,3 +25,4 @@ class TaskState(TypedDict):
     final_report: str
     ended_once: bool
     retry_count: Annotated[int, add]
+    input_valid: bool

@@ -59,6 +59,7 @@ async def entry_node(state: TaskState):
         todo_to_be_updated = TODOs(todo_list=[])
         todo_to_be_updated.thread_id = thread_id
         state["todos"] = todo_to_be_updated
+        state["input_valid"] = False
 
     return state
 
@@ -261,7 +262,7 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
     }, goto=END)
 
 
-async def call_input_validation(state: TaskState, runtime: Runtime[Context]) -> Command:
+async def call_input_validation(state: TaskState, runtime: Runtime[Context]) -> dict:
     cfg = get_config()
     thread_id = cfg.get("configurable", {}).get("thread_id")
 
@@ -269,18 +270,31 @@ async def call_input_validation(state: TaskState, runtime: Runtime[Context]) -> 
     ctm = convert_to_messages(user_message)
     gbt = get_buffer_string(ctm, human_prefix="", ai_prefix="").strip()
     logging.info(f'[{thread_id}] Input received for validation: {gbt[:100]}...')
-    if not user_message:
-        logging.info(ctm)
-        return Command(update={"retry_count": state["retry_count"], "messages": state["messages"]}, goto=END)
+    if not gbt:
+        logging.info(gbt)
+        return {
+            "retry_count": state["retry_count"],
+            "messages": state["messages"],
+            "input_valid": False  # Flag for routing
+        }
 
     is_safe: bool = await scan_for_vulnerability(gbt)
     if is_safe:
         logging.info(f'[{thread_id}] Input validation passed')
-        return Command(update={
+        return {
             "task": gbt,
             "messages": AIMessage(f"Validated user prompt: {gbt[:50]}..."),
-        }, goto="planner")
+            "input_valid": True  # Flag for routing
+        }
+
     else:
         logging.warning(f'[{thread_id}] Input validation failed - malicious content detected')
-        return Command(update={"task": gbt, "messages": AIMessage(f"Unsafe user prompt detected: {gbt[:50]}...")},
-                       goto=END)
+        return {
+            "task": gbt,
+            "messages": AIMessage(f"Unsafe user prompt detected: {gbt[:50]}..."),
+            "input_valid": False  # Flag for routing
+        }
+
+
+async def route_after_validation(state: TaskState) -> str:
+    return "planner" if state["input_valid"] else END
