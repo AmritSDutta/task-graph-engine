@@ -246,7 +246,10 @@ Uses a registry + resolver pattern for model creation:
 - Zhipu (z.ai): GLM-4.5-Flash, GLM-4.6V-Flash, GLM-4.7-Flash
 - Sarvam AI: sarvam-m (default inference model)
 
-**Important**: Models with `cloud` suffix require Ollama running locally:
+**Ollama Deployment Options**:
+You can use Ollama models in two ways:
+
+**Option 1: Local Ollama (Default)**
 ```bash
 # Install Ollama from https://ollama.com
 # Pull models
@@ -256,6 +259,20 @@ ollama pull gemma3:27b
 ollama pull kimi-k2.5
 ollama pull gpt-oss:20b
 ```
+
+**Option 2: Ollama Cloud URL (for Docker/remote deployments)**
+```bash
+# In .env file
+USE_OLLAMA_CLOUD_URL=true
+OLLAMA_CLOUD_URL=https://your-ollama-cloud.com
+OLLAMA_API_KEY=your-api-key-here
+```
+
+When `USE_OLLAMA_CLOUD_URL` is True:
+- All Ollama provider models use the remote `base_url` instead of `localhost:11434`
+- Authorization header is set using `OLLAMA_API_KEY`
+- Timeout is configured to 60 seconds for cloud requests
+- Non-Ollama providers are unaffected
 
 **7. Tools (`src/task_agent/utils/tools.py`)**
 - `get_web_search_tool()`: Returns TavilySearch instance for web search capabilities
@@ -272,8 +289,15 @@ Uses LLM-based capability inference for model selection. **All LLM calls are asy
 
 *CSV-Based Model Configuration:*
 Model capabilities and costs are loaded from CSV files in the project root:
-- `model_capabilities.csv`: Columns = `model,reasoning,tools,fast,cheap,informational,coding,vision,long,synthesizing,summarizing,planning`
+- `model_capabilities.csv`: Columns = `model,reasoning,tools,fast,cheap,informational,coding,vision,long,synthesizing,summarizing,planning,enabled`
 - `model_costs.csv`: Columns = `model,cost`
+
+**Model Availability Control (`enabled` flag)**:
+- The `enabled` column in `model_capabilities.csv` controls which models are available
+- Models with `enabled=False` are excluded from selection automatically
+- The `FALLBACK_MODEL` (default: `gpt-4o-mini`) overrides the disabled status
+- Useful for: testing specific models, cost control, or temporarily disabling problematic providers
+- Example: `GLM-4.7-Flash,False,...` disables that model while keeping it in the CSV
 
 **Important**: When adding new models or updating capabilities/costs, edit the CSV files directly - no code changes needed. The loader functions (`_load_model_capabilities_from_csv()` and `_load_model_costs_from_csv()`) automatically find these files at startup.
 
@@ -414,8 +438,12 @@ Configuration is loaded from environment variables via `pydantic-settings`:
 - Optional: `ANTHROPIC_API_KEY` (if using Anthropic models)
 - Optional: `TAVILY_API_KEY` (if using web search tools)
 - Optional: `INFERENCE_MODEL` (default: `"sarvam-m"`)
+- Optional: `FALLBACK_MODEL` (default: `"gpt-4o-mini"`) - Overrides `enabled=False` flag in capabilities CSV
 - Optional: `MODERATION_API_CHECK_REQ` (default: `True`) - Controls whether LLM moderation API is called
 - Optional: `COST_SPREADING_FACTOR` (default: `0.03`) - Controls exponential penalty for model usage
+- Optional: `USE_OLLAMA_CLOUD_URL` (default: `False`) - Enable Ollama cloud URL for remote deployments
+- Optional: `OLLAMA_CLOUD_URL` (default: `"https://ollama.com"`) - Ollama cloud endpoint URL
+- Optional: `OLLAMA_API_KEY` (default: `""`) - API key for Ollama cloud endpoint authentication
 - Optional: `MODEL_COST_CSV_PATH` (default: `"model_costs.csv"`) - Path to model costs CSV file
 - Optional: `MODEL_CAPABILITY_CSV_PATH` (default: `"model_capabilities.csv"`) - Path to model capabilities CSV file
 - Optional: `API_KEY` (default: `""`) - API key for protected REST endpoints
@@ -437,10 +465,19 @@ TAVILY_API_KEY=tvly-...
 
 # Optional: Override default inference model
 INFERENCE_MODEL=gpt-4o-mini
+
+# Optional: Set fallback model (overrides enabled flag)
+FALLBACK_MODEL=gpt-4o-mini
+
 MODERATION_API_CHECK_REQ=true
 
 # Optional: Cost spreading for load balancing
 COST_SPREADING_FACTOR=0.03
+
+# Optional: Ollama cloud URL for Docker/remote deployments
+USE_OLLAMA_CLOUD_URL=true
+OLLAMA_CLOUD_URL=https://your-ollama-cloud.com
+OLLAMA_API_KEY=your-ollama-api-key
 
 # Optional: CSV file paths (supports absolute, relative, or filename)
 MODEL_COST_CSV_PATH=/app/config/model_costs.csv
@@ -516,6 +553,14 @@ The LangGraph server integrates a custom FastAPI application that provides addit
 
 **GLM Model Resolution**: The `glm-` prefix resolves to Ollama by default (for local models like `glm-4.6:cloud`). Specific Zhipu GLM models (`GLM-4.5-Flash`, `GLM-4.6V-Flash`, `GLM-4.7-Flash`) are checked first and resolve to the Zhipu provider. Order matters in the prefix dictionary.
 
+**Ollama Cloud URL Configuration**: For Docker deployments or machines without Ollama Desktop installed, enable cloud URL mode:
+```bash
+USE_OLLAMA_CLOUD_URL=true
+OLLAMA_CLOUD_URL=https://your-ollama-cloud.com
+OLLAMA_API_KEY=your-api-key-here
+```
+When enabled, all Ollama provider models will use the remote endpoint with proper authentication instead of `http://localhost:11434`. This is particularly useful for containerized deployments where you cannot run Ollama locally.
+
 **Module Not Found**: If you see `ModuleNotFoundError: No module named 'task_agent'`, run `pip install -e .` to install the package in editable mode.
 
 **Package Name**: The package is installed as `task-graph-engine` (from `pyproject.toml`) but imports use `task_agent` (the Python package name in `src/`).
@@ -552,6 +597,11 @@ The LangGraph server integrates a custom FastAPI application that provides addit
 - Absolute path: Use `MODEL_COST_CSV_PATH=/app/config/costs.csv` for Docker mounts
 - Relative path: Use `MODEL_COST_CSV_PATH=./config/costs.csv` to resolve from cwd
 - Filename only: Use `MODEL_COST_CSV_PATH=costs.csv` to resolve from project root
+
+The `model_capabilities.csv` includes an `enabled` column for controlling model availability:
+- Set `enabled=False` to disable a model (excluded from selection)
+- The `FALLBACK_MODEL` (default: `gpt-4o-mini`) overrides disabled status
+- Useful for testing, cost control, or temporarily disabling problematic providers
 
 To add new models or update existing ones:
 1. Edit the CSV files directly (no code changes needed)

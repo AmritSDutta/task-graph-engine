@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     MODERATION_API_CHECK_REQ: bool = True
     COST_SPREADING_FACTOR: float = 0.03
     ENABLE_LANGSMITH_TRACING_V2: str = "false"
+    USE_OLLAMA_CLOUD_URL: bool = False
+    OLLAMA_CLOUD_URL: str = "https://ollama.com"
 
     MODEL_COST_CSV_PATH: str = "model_costs.csv"
     """Path to model costs CSV file.

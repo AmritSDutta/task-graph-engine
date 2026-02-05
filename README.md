@@ -43,18 +43,36 @@ create_llm("llama-3.2")               # → Ollama (default fallback)
 ```
 **Order matters!** We check suffix → prefix → default to handle edge cases elegantly.
 
+**Ollama Cloud URL Support** 🆕:
+For Docker deployments or machines without Ollama Desktop, enable cloud URL mode:
+```bash
+# In .env or docker-compose.yml
+USE_OLLAMA_CLOUD_URL=true
+OLLAMA_CLOUD_URL=https://your-ollama-cloud.com
+OLLAMA_API_KEY=your-api-key-here
+```
+
+When enabled, all Ollama models (those with `:cloud` suffix or resolved to Ollama) will use the remote endpoint with proper authentication instead of the local `http://localhost:11434`.
+
 #### 📋 **CSV-Based Model Configuration** 🆕
 Model capabilities and costs are loaded from CSV files - no code changes needed:
 ```bash
-# model_capabilities.csv
-model,reasoning,tools,fast,cheap,informational,coding,vision,long
-gpt-4o,True,True,True,False,True,True,True,True,True
+# model_capabilities.csv (includes 'enabled' column for model availability)
+model,reasoning,tools,fast,cheap,informational,coding,vision,long,synthesizing,summarizing,planning,enabled
+gpt-4o,True,True,True,False,True,True,True,True,True,True,False,True
+GLM-4.7-Flash,True,True,True,True,True,False,False,False,False,False,False,False
 
 # model_costs.csv
 model,cost
 gpt-4o,5.0
 gpt-4o-mini,0.035
 ```
+
+**Model Availability Control**:
+- Set `enabled=False` to disable specific models
+- Disabled models are excluded from selection automatically
+- The `FALLBACK_MODEL` (default: `gpt-4o-mini`) overrides disabled status
+- Useful for testing, cost control, or provider issues
 
 **Flexible Path Resolution**:
 - Default: Project root (`model_costs.csv`)
@@ -261,6 +279,9 @@ All environment variables from `.env.example` can be passed to Docker:
 | `INFERENCE_MODEL` | No | `kimi-k2.5:cloud` | Default inference model |
 | `MODERATION_API_CHECK_REQ` | No | `true` | Enable LLM moderation API |
 | `COST_SPREADING_FACTOR` | No | `0.03` | Load balancing penalty factor |
+| `USE_OLLAMA_CLOUD_URL` | No | `false` | Enable Ollama cloud URL for remote deployments |
+| `OLLAMA_CLOUD_URL` | No | `https://ollama.com` | Ollama cloud endpoint URL |
+| `OLLAMA_API_KEY` | No | - | API key for Ollama cloud endpoint |
 | `API_KEY` | No | - | API authentication key |
 | `REQUIRE_AUTH` | No | `false` | Enable endpoint authentication |
 
@@ -568,6 +589,9 @@ GOOGLE_API_KEY=AIza...
 # Optional (inference model)
 INFERENCE_MODEL=kimi-k2.5:cloud
 
+# Optional (fallback model - overrides enabled flag if disabled)
+FALLBACK_MODEL=gpt-4o-mini
+
 # Optional (moderation)
 MODERATION_API_CHECK_REQ=true
 
@@ -577,6 +601,11 @@ COST_SPREADING_FACTOR=0.03
 # Optional (CSV file paths - supports absolute, relative, or filename)
 MODEL_COST_CSV_PATH=model_costs.csv
 MODEL_CAPABILITY_CSV_PATH=model_capabilities.csv
+
+# Optional (Ollama cloud URL for Docker/remote deployments)
+USE_OLLAMA_CLOUD_URL=true
+OLLAMA_CLOUD_URL=https://your-ollama-cloud.com
+OLLAMA_API_KEY=your-ollama-api-key
 
 # Optional (API authentication for protected endpoints)
 API_KEY=your-secret-api-key-here
@@ -613,7 +642,6 @@ docker run -e OPENAI_API_KEY=xxx \
 
 ## 🚧 Current Limitations
 
-- **Local Models Only**: Ollama requires running models locally (no remote API)—because the best things in life are worth hosting yourself
 - **E2E Tests Skipped**: End-to-end tests need API keys to run (marked as skip by default)—we'd rather not accidentally spend your rent money on LLM calls
 - **Vision Model Quirks**: Sometimes models see things that aren't there. Like your imagination, but worse.
 

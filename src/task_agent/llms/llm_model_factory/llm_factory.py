@@ -6,7 +6,7 @@ Centralizes model creation with clean separation of concerns:
 - Resolver: Model name → Provider lookup
 - Factory: Instantiates model using registry + resolved provider
 """
-
+import os
 from typing import Type
 
 from langchain_core.language_models import BaseChatModel
@@ -18,6 +18,8 @@ from langchain_openai import ChatOpenAI
 from sarvam import (
       SarvamChat,
   )
+
+from task_agent.config import settings
 
 # Registry: Provider → LangChain constructor
 LLM_REGISTRY: dict[str, Type[BaseChatModel]] = {
@@ -84,6 +86,17 @@ def create_llm(model: str, **kwargs) -> BaseChatModel:
     """
     provider = resolve_provider(model)
     constructor = LLM_REGISTRY[provider]
+
+    if settings.USE_OLLAMA_CLOUD_URL and provider == "ollama":
+        # for docker deployment or machine without ollama desktop installed, this should be used.
+        return ChatOllama(
+            model=model,
+            base_url=settings.OLLAMA_CLOUD_URL,  # Cloud endpoint
+            client_kwargs={
+                "headers": {"Authorization": "Bearer " + os.getenv("OLLAMA_API_KEY")},
+                "timeout": 60.0  # Timeout in seconds
+            }
+        )
     return constructor(model=model, **kwargs)
 
 
