@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     INFERENCE_MAX_RETRY: int = 3
     MODERATION_API_CHECK_REQ: bool = True
     COST_SPREADING_FACTOR: float = 0.03
+    TOKEN_USAGE_LOG_BASE: float = 100.0
     ENABLE_LANGSMITH_TRACING_V2: str = "false"
     USE_OLLAMA_CLOUD_URL: bool = False
     OLLAMA_CLOUD_URL: str = "https://ollama.com"

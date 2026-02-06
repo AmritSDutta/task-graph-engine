@@ -4,6 +4,7 @@ import time
 from langchain_core.messages import AIMessage
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
+from task_agent.config import settings
 from task_agent.llms.llm_model_factory.llm_factory import create_llm
 from task_agent.utils.model_live_usage import get_model_usage_singleton, ModelLiveUsage
 from task_agent.utils.tools import get_web_search_tool
@@ -50,7 +51,7 @@ def _extract_token_usage(response: AIMessage) -> dict | None:
     return None
 
 
-async def _invoke_with_retry(llm, prompt) -> AIMessage:
+async def _invoke_with_retry(llm, prompt, model_name) -> AIMessage:
     """Internal function with tenacity retry decorator.
 
     This function is decorated with @retry and will be called for both
@@ -62,17 +63,19 @@ async def _invoke_with_retry(llm, prompt) -> AIMessage:
 
     # Extract token usage from response
     token_usage = _extract_token_usage(response)
-
+    model_usage: ModelLiveUsage = get_model_usage_singleton()
     # Log completion with timing and token usage
     if token_usage:
+        model_usage.add_model_token_usage(model_name,
+                                          token_usage.get('total_tokens', settings.TOKEN_USAGE_LOG_BASE))
         logger.info(
-            f"LLM call completed in {elapsed:.3f}s | "
-            f"Tokens: {token_usage.get('input_tokens', 'N/A')} in, "
-            f"{token_usage.get('output_tokens', 'N/A')} out, "
-            f"{token_usage.get('total_tokens', 'N/A')} total"
+            f"LLM call to [{model_name}] completed in {elapsed:.3f}s | "
+            f"Tokens: in {token_usage.get('input_tokens', 'N/A')} in, "
+            f" out {token_usage.get('output_tokens', 'N/A')}, "
+            f" total{token_usage.get('total_tokens', 'N/A')}"
         )
     else:
-        logger.info(f"LLM call completed in {elapsed:.3f}s")
+        logger.info(f"LLM call to [{model_name}] completed in {elapsed:.3f}s")
 
     # Add timing metadata to response metadata if available
     if hasattr(response, 'metadata'):
@@ -131,7 +134,7 @@ async def call_llm_with_retry(
 
     try:
         model_usage.add_model_usage(model_name)
-        return await _invoke_with_retry(llm, prompt)
+        return await _invoke_with_retry(llm, prompt, model_name)
     except Exception as e:
         logger.error(f"Primary model {model_name} failed after retries: {e}")
 
@@ -146,7 +149,7 @@ async def call_llm_with_retry(
                 llm_fallback = llm_fallback.with_structured_output(structured_output)
             try:
                 model_usage.add_model_usage(fallback_model)
-                return await _invoke_with_retry(llm_fallback, prompt)
+                return await _invoke_with_retry(llm_fallback, prompt, fallback_model)
             except Exception as fallback_error:
                 logger.error(f"Fallback model {fallback_model} also failed: {fallback_error}")
                 raise fallback_error

@@ -50,10 +50,13 @@ async def select_models(task: str, top_n: int = 5) -> List[str]:
         # Check if model has all required capabilities
         if required_capabilities.issubset(model_caps):
             cost = MODEL_COST.get(model, 999.0)
-            factor = math.exp(settings.COST_SPREADING_FACTOR * model_usage.get_model_usage(model))
-            derived_cost: float = cost * factor
+            token_usage = model_usage.get_model_token_usage(model)
+            factor_token = math.log(token_usage, settings.TOKEN_USAGE_LOG_BASE)
+            models_used_in_past: int = model_usage.get_model_usage(model)
+            factor = math.exp(settings.COST_SPREADING_FACTOR * models_used_in_past)
+            derived_cost: float = cost * (factor + factor_token)
             logging.info(f"{model}: c: {cost:3.3f} |, D: {derived_cost:3.3f} |, factor:{factor:1.5f} | ,"
-                         f" usage: {model_usage.get_model_usage(model)} |")
+                         f" usage: {models_used_in_past} | token_usage: {token_usage}")
             candidates.append((model, derived_cost))
 
     if not candidates:

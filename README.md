@@ -89,6 +89,29 @@ src/task_agent/llms/prompts/
 └── capability_inference.prompt # Capability classifier with {{task}} template
 ```
 
+**Usage**:
+```python
+from task_agent.llms.prompts import (
+    get_planner_prompt,
+    get_combiner_prompt,
+    list_available_prompts
+)
+
+# List all prompts
+print(list_available_prompts())
+# ['capability_inference', 'combiner', 'planner', 'subtask']
+
+# Use prompts
+planner = get_planner_prompt()
+combiner = get_combiner_prompt(user_query="Analyze market trends")
+```
+
+**Benefits**:
+- Non-technical team can edit prompts directly
+- Git version control for all changes
+- Easy A/B testing by swapping files
+- Template variables with `{{variable}}` syntax
+
 #### 👁️ **Multimodal Image Analysis** 🆕
 Support for analyzing images through vision-capable LLMs:
 - **Automatic Detection**: System detects images in messages
@@ -114,29 +137,6 @@ content = [
     {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}
 ]
 ```
-
-**Usage**:
-```python
-from task_agent.llms.prompts import (
-    get_planner_prompt,
-    get_combiner_prompt,
-    list_available_prompts
-)
-
-# List all prompts
-print(list_available_prompts())
-# ['capability_inference', 'combiner', 'planner', 'subtask']
-
-# Use prompts
-planner = get_planner_prompt()
-combiner = get_combiner_prompt(user_query="Analyze market trends")
-```
-
-**Benefits**:
-- Non-technical team can edit prompts directly
-- Git version control for all changes
-- Easy A/B testing by swapping files
-- Template variables with `{{variable}}` syntax
 
 #### 🔄 **Two-Step Structured Output**
 LLMs hate complex nested schemas. So we trick them:
@@ -737,11 +737,11 @@ Task: {{task}}
 
 - [x] **Circuit Breakers**: Retry logic with exponential backoff for LLM API failures ✅ (because things *will* fail)
 - [x] **Cost Tracking**: Token usage and cost logging per task 💰 (so you know exactly how much this brilliance cost)
+- [x] **Docker Support**: Containerize for easy deployment 🐳 (works on my machine → works in the container → hopefully works in production)
 - [x] **REST API**: Custom endpoints for monitoring and configuration 🌐 (API-first, always)
 - [x] **Image Analysis**: Multimodal support for vision-capable models 👁️ (what does this meme *mean*?)
 - [x] **Streamlit UI**: Web interface for testing with image upload 🖥️ (for when you're tired of curl commands)
 - [ ] **Multi-Agent Evaluation**: Implement `CombinedPlan` for parallel agent evaluation (divide and conquer, but make it AI)
-- [ ] **Docker Support**: Containerize for easy deployment 🐳 (works on my machine → works in the container → hopefully works in production)
 - [ ] **Monitoring**: OpenTelemetry metrics and tracing 📊 (because "it's slow" is not a helpful bug report)
 - [ ] **Rate Limiting**: Per-user quotas to prevent bill shock 🛡️ (your wallet will thank us)
 

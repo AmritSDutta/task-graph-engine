@@ -1,6 +1,6 @@
 import unittest
 import threading
-from src.task_agent.utils.model_live_usage import ModelLiveUsage, ModelLiveUsageSingleton, get_model_usage_singleton
+from task_agent.utils.model_live_usage import ModelLiveUsage, ModelLiveUsageSingleton, get_model_usage_singleton
 
 
 class TestModelLiveUsage(unittest.TestCase):
@@ -274,6 +274,198 @@ class TestModelLiveUsageWithUsageParameter(unittest.TestCase):
 
         # Verify model-a is still correct
         self.assertEqual(self.model_usage.model_usage["model-a"], 35)
+
+
+class TestModelTokenUsage(unittest.TestCase):
+    """Test cases for token usage tracking in ModelLiveUsage."""
+
+    def setUp(self):
+        self.model_usage = ModelLiveUsage()
+        from task_agent.config import settings
+        self.default_base = settings.TOKEN_USAGE_LOG_BASE
+
+    def test_initialization_with_default_token_usage(self):
+        """Test that model_token_usage initializes with default TOKEN_USAGE_LOG_BASE."""
+        from task_agent.config import settings
+
+        # New models should have TOKEN_USAGE_LOG_BASE as default
+        self.assertEqual(self.model_usage.model_token_usage["gpt-4"], settings.TOKEN_USAGE_LOG_BASE)
+        self.assertEqual(self.model_usage.model_token_usage["claude-3"], settings.TOKEN_USAGE_LOG_BASE)
+
+    def test_add_model_token_usage(self):
+        """Test adding token usage to a model."""
+        # Add token usage (starts with default_base)
+        self.model_usage.add_model_token_usage("gpt-4", 1000)
+        self.assertEqual(self.model_usage.model_token_usage["gpt-4"], self.default_base + 1000.0)
+
+        # Add more token usage (should accumulate)
+        self.model_usage.add_model_token_usage("gpt-4", 500)
+        self.assertEqual(self.model_usage.model_token_usage["gpt-4"], self.default_base + 1500.0)
+
+    def test_add_model_token_usage_with_float(self):
+        """Test adding token usage with float values."""
+        # Add float token usage
+        self.model_usage.add_model_token_usage("gpt-4", 1000.5)
+        self.assertEqual(self.model_usage.model_token_usage["gpt-4"], self.default_base + 1000.5)
+
+        # Add more float usage
+        self.model_usage.add_model_token_usage("gpt-4", 500.25)
+        self.assertEqual(self.model_usage.model_token_usage["gpt-4"], self.default_base + 1500.75)
+
+    def test_add_model_token_usage_with_default_value(self):
+        """Test adding token usage with default value (1e-9)."""
+        initial_value = self.model_usage.model_token_usage["new-model"]
+
+        # Add with default usage (should add 1e-9)
+        self.model_usage.add_model_token_usage("new-model")
+        self.assertEqual(self.model_usage.model_token_usage["new-model"], initial_value + 1e-9)
+
+    def test_add_model_token_usage_with_zero(self):
+        """Test adding zero token usage."""
+        initial_value = self.model_usage.model_token_usage["test-model"]
+        self.model_usage.add_model_token_usage("test-model", 0)
+        self.assertEqual(self.model_usage.model_token_usage["test-model"], initial_value)
+
+    def test_get_model_token_usage(self):
+        """Test getting token usage for a single model."""
+        self.model_usage.add_model_token_usage("gpt-4", 5000)
+
+        # Get token usage for single model (includes default base)
+        usage = self.model_usage.get_model_token_usage("gpt-4")
+        self.assertEqual(usage, self.default_base + 5000.0)
+
+    def test_get_model_token_usage_for_new_model(self):
+        """Test getting token usage for a model that hasn't been used yet."""
+        # Should return default TOKEN_USAGE_LOG_BASE
+        from task_agent.config import settings
+
+        usage = self.model_usage.get_model_token_usage("never-used-model")
+        self.assertEqual(usage, settings.TOKEN_USAGE_LOG_BASE)
+
+    def test_get_models_token_usage(self):
+        """Test getting token usage for multiple models at once."""
+        # Add token usage for multiple models
+        self.model_usage.add_model_token_usage("gpt-4", 1000)
+        self.model_usage.add_model_token_usage("gpt-3.5", 2000)
+        self.model_usage.add_model_token_usage("claude-3", 1500)
+
+        # Get token usage for multiple models (includes default base)
+        usage_dict = self.model_usage.get_models_token_usage(["gpt-4", "gpt-3.5", "claude-3"])
+
+        self.assertEqual(usage_dict["gpt-4"], self.default_base + 1000.0)
+        self.assertEqual(usage_dict["gpt-3.5"], self.default_base + 2000.0)
+        self.assertEqual(usage_dict["claude-3"], self.default_base + 1500.0)
+
+    def test_get_models_token_usage_with_mixed_models(self):
+        """Test getting token usage with mix of used and unused models."""
+        from task_agent.config import settings
+
+        self.model_usage.add_model_token_usage("gpt-4", 5000)
+
+        # Get usage for mix of used and unused models (includes default base for both)
+        usage_dict = self.model_usage.get_models_token_usage(["gpt-4", "never-used-model"])
+
+        self.assertEqual(usage_dict["gpt-4"], self.default_base + 5000.0)
+        self.assertEqual(usage_dict["never-used-model"], settings.TOKEN_USAGE_LOG_BASE)
+
+    def test_token_usage_accumulates_across_calls(self):
+        """Test that token usage accumulates across multiple add_model_token_usage calls."""
+        # Add token usage in multiple chunks
+        for i in range(10):
+            self.model_usage.add_model_token_usage("gpt-4", 100)
+
+        # Should accumulate to 1000 + default_base
+        self.assertEqual(self.model_usage.model_token_usage["gpt-4"], self.default_base + 1000.0)
+
+    def test_multiple_models_token_tracking(self):
+        """Test tracking token usage for multiple models independently."""
+        models_and_tokens = {
+            "gpt-4": 10000,
+            "gpt-3.5": 5000,
+            "claude-3": 7500,
+            "llama-2": 3000
+        }
+
+        # Add token usage for each model
+        for model, tokens in models_and_tokens.items():
+            self.model_usage.add_model_token_usage(model, tokens)
+
+        # Verify all models have correct token usage (includes default base)
+        for model, expected_tokens in models_and_tokens.items():
+            self.assertEqual(self.model_usage.model_token_usage[model], self.default_base + float(expected_tokens))
+
+    def test_log_model_usage_includes_token_info(self):
+        """Test that log_model_usage logs both call count and token usage."""
+        self.model_usage.add_model_usage("gpt-4", 5)
+        self.model_usage.add_model_token_usage("gpt-4", 1500)
+
+        # Just ensure no exceptions are raised when logging
+        try:
+            self.model_usage.log_model_usage()
+        except Exception as e:
+            self.fail(f"log_model_usage raised {e} unexpectedly!")
+
+
+class TestModelTokenUsageThreadSafety(unittest.TestCase):
+    """Test thread safety of token usage tracking."""
+
+    def test_concurrent_token_usage_updates(self):
+        """Test that token usage tracking is thread-safe."""
+        model_usage = ModelLiveUsage()
+        num_threads = 10
+        tokens_per_thread = 1000
+
+        def worker(model_name):
+            for _ in range(tokens_per_thread):
+                model_usage.add_model_token_usage(model_name, 1)
+
+        threads = []
+        for i in range(num_threads):
+            thread = threading.Thread(target=worker, args=(f"model_{i % 3}",))
+            threads.append(thread)
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        # Verify token usage accumulated correctly (each model should have tokens_per_thread * threads_per_model)
+        # Each model is used by approximately num_threads / 3 threads
+        expected_min = tokens_per_thread * (num_threads // 3)
+        # At least one model should have significant token usage
+        total_tokens = sum(model_usage.model_token_usage.values())
+        # Subtract the default values for all models
+        from task_agent.config import settings
+        default_tokens = settings.TOKEN_USAGE_LOG_BASE * len(model_usage.model_token_usage)
+        actual_tokens = total_tokens - default_tokens
+
+        self.assertGreater(actual_tokens, expected_min - 100)  # Allow small variance for thread scheduling
+
+    def test_concurrent_call_and_token_updates(self):
+        """Test concurrent updates to both call count and token usage."""
+        from task_agent.config import settings
+
+        model_usage = ModelLiveUsage()
+        num_threads = 5
+
+        def worker(model_name):
+            for _ in range(100):
+                model_usage.add_model_usage(model_name)
+                model_usage.add_model_token_usage(model_name, 50)
+
+        threads = []
+        for i in range(num_threads):
+            thread = threading.Thread(target=worker, args=(f"model_{i}",))
+            threads.append(thread)
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        # Verify both call count and token usage were updated
+        self.assertEqual(model_usage.model_usage["model_0"], 100)
+        # Token usage includes default base + (50 * 100)
+        expected_tokens = settings.TOKEN_USAGE_LOG_BASE + 5000.0
+        self.assertEqual(model_usage.model_token_usage["model_0"], expected_tokens)
 
 
 if __name__ == '__main__':

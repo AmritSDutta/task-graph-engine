@@ -1,12 +1,15 @@
 import logging
 import threading
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, List, Union
+
+from task_agent.config import settings
 
 
 class ModelLiveUsage:
     def __init__(self):
         self.model_usage: Dict[str, int] = defaultdict(lambda: 0)
+        self.model_token_usage: Dict[str, float] = defaultdict(lambda: settings.TOKEN_USAGE_LOG_BASE)
 
     def add_model_usage(self, model_name: str, usage: int = 1) -> None:
         self.model_usage[model_name] = self.model_usage[model_name] + usage
@@ -20,7 +23,18 @@ class ModelLiveUsage:
         return self.model_usage[model_name]
 
     def log_model_usage(self) -> None:
-        logging.info(f"Models live usage:\n {self.model_usage}")
+        logging.info(f"Models live usage: \n Calls:\n {self.model_usage}\n Tokens: \n {self.model_token_usage}")
+
+    def add_model_token_usage(self, model_name: str, usage: Union[int, float] = 1e-9) -> None:
+        self.model_token_usage[model_name] += float(usage)
+
+    def get_models_token_usage(self, model_names: List[str]) -> Dict[str, float]:
+        """Returns a dictionary with the current usage values for the specified models."""
+        return {name: self.model_token_usage[name] for name in model_names}
+
+    def get_model_token_usage(self, model_name: str) -> float:
+        """Returns a dictionary with the current usage values for the specified models."""
+        return self.model_token_usage[model_name]
 
 
 class ModelLiveUsageSingleton:
