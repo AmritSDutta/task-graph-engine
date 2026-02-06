@@ -166,6 +166,9 @@ class TestGetCheapestModel:
                     with patch("task_agent.llms.simple_llm_selector.router.get_model_usage_singleton", return_value=mock_usage_tracker):
                         with patch("task_agent.llms.simple_llm_selector.router.settings") as mock_settings:
                             mock_settings.COST_SPREADING_FACTOR = 0.03
+                            mock_settings.TOKEN_USAGE_LOG_BASE = 100.0
+                            mock_settings.FORMULA_WEIGHT_CALL_COUNT = 0.5
+                            mock_settings.FORMULA_WEIGHT_TOKEN_COUNT = 0.5
                             # Set different usage counts - gpt-4o-mini has been used more
                             def mock_get_usage(model):
                                 return 10 if model == "gpt-4o-mini" else 0
@@ -271,6 +274,9 @@ class TestSelectModels:
                     with patch("task_agent.llms.simple_llm_selector.router.get_model_usage_singleton", return_value=mock_usage_tracker):
                         with patch("task_agent.llms.simple_llm_selector.router.settings") as mock_settings:
                             mock_settings.COST_SPREADING_FACTOR = 0.03
+                            mock_settings.TOKEN_USAGE_LOG_BASE = 100.0
+                            mock_settings.FORMULA_WEIGHT_CALL_COUNT = 0.5
+                            mock_settings.FORMULA_WEIGHT_TOKEN_COUNT = 0.5
                             mock_infer.return_value = {"informational"}
 
                             result = await select_models("What is Python?", top_n=3)
@@ -306,6 +312,9 @@ class TestSelectModels:
                     with patch("task_agent.llms.simple_llm_selector.router.get_model_usage_singleton", return_value=mock_usage_tracker):
                         with patch("task_agent.llms.simple_llm_selector.router.settings") as mock_settings:
                             mock_settings.COST_SPREADING_FACTOR = 0.03
+                            mock_settings.TOKEN_USAGE_LOG_BASE = 100.0
+                            mock_settings.FORMULA_WEIGHT_CALL_COUNT = 0.5
+                            mock_settings.FORMULA_WEIGHT_TOKEN_COUNT = 0.5
                             # Simulate high usage on gpt-4o-mini
                             def mock_get_usage(model):
                                 return 5 if model == "gpt-4o-mini" else 0

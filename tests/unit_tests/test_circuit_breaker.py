@@ -275,7 +275,7 @@ class TestInvokeWithRetryBehavior:
         mock_llm.ainvoke.return_value = mock_response
 
         with patch('task_agent.utils.circuit_breaker.time.time', side_effect=[0.0, 1.5]):
-            result = await _invoke_with_retry(mock_llm, "test prompt")
+            result = await _invoke_with_retry(mock_llm, "test prompt", model_name="gpt-4o-mini")
 
         # Verify metadata was added
         assert 'execution_time' in result.metadata
@@ -297,7 +297,7 @@ class TestInvokeWithRetryBehavior:
         mock_llm.ainvoke.return_value = mock_response
 
         with patch('task_agent.utils.circuit_breaker.time.time', return_value=0.0):
-            result = await _invoke_with_retry(mock_llm, "test prompt")
+            result = await _invoke_with_retry(mock_llm, "test prompt", model_name="gpt-4o-mini")
 
         # Verify response is returned
         assert result.content == "Test"
@@ -316,7 +316,7 @@ class TestInvokeWithRetryBehavior:
         mock_llm.ainvoke.return_value = mock_response
 
         with patch('task_agent.utils.circuit_breaker.time.time', return_value=0.0):
-            result = await _invoke_with_retry(mock_llm, "test prompt")
+            result = await _invoke_with_retry(mock_llm, "test prompt", model_name="gpt-4o-mini")
 
         # Should not raise error
         assert result.content == "Test"

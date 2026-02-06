@@ -432,24 +432,69 @@ formatted = format_prompt(template, user_query="test query")
 4. No code changes needed in the loader module
 
 **11. Model Live Usage (`src/task_agent/utils/model_live_usage.py`)**
-Tracks model usage counts for cost spreading via exponential penalty:
-- `ModelLiveUsage`: Core class tracking usage counts per model via `defaultdict`
+Tracks model usage counts and token usage for dynamic cost calculation:
+- `ModelLiveUsage`: Core class tracking usage counts and token usage per model via `defaultdict`
 - `ModelLiveUsageSingleton`: Thread-safe singleton ensuring single usage tracker instance
 - `get_model_usage_singleton()`: Convenience function returning singleton instance
 
 **Usage Tracking**:
 - `add_model_usage(model_name, usage)`: Sets or updates usage count (note: sets, doesn't increment)
 - `get_model_usage(model_names)`: Returns usage counts (note: parameter name is plural but accepts single string in implementation)
+- `add_model_token_usage(model_name, usage)`: Adds token usage to a model (accumulates)
+- `get_model_token_usage(model_name)`: Returns total token usage for a model
+- `get_models_token_usage(model_names)`: Returns token usage for multiple models
 - Singleton pattern ensures consistent tracking across all graph nodes
 
-**12. Router with Cost Penalty (`src/task_agent/llms/simple_llm_selector/router.py`)**
-Implements exponential cost penalty for load balancing:
+**Token Usage Details**:
+- New models start with `TOKEN_USAGE_LOG_BASE` (default: 100.0) as initial token count
+- Token usage accumulates with each LLM call extracted from response metadata
+- Thread-safe operations support concurrent access from parallel subtasks
+- Used for logarithmic cost scaling in router (see below)
+
+**12. Router with Weighted Cost Penalty (`src/task_agent/llms/simple_llm_selector/router.py`)**
+Implements dynamic cost calculation with configurable weighted penalties for load balancing:
 ```python
-derived_cost = base_cost * exp(COST_SPREADING_FACTOR * model_usage.get_model_usage(model))
+# Get token usage and call count
+token_usage = model_usage.get_model_token_usage(model)
+models_used_in_past = model_usage.get_model_usage(model)
+
+# Calculate individual penalties
+factor_token = math.log(token_usage, settings.TOKEN_USAGE_LOG_BASE)
+factor = math.log(10 + (settings.COST_SPREADING_FACTOR * models_used_in_past))
+
+# Apply weighted combination
+derived_cost = cost * ((settings.FORMULA_WEIGHT_CALL_COUNT * factor) +
+                       (settings.FORMULA_WEIGHT_TOKEN_COUNT * factor_token))
 ```
-- As model usage increases, effective cost grows exponentially
-- `COST_SPREADING_FACTOR` (default 0.03 in config.py) controls penalty aggression
-- Promotes load balancing across multiple models with similar capabilities
+
+**Mathematical form**:
+```
+derived_cost = base_cost × (w₁ × ln(10 + α × call_count) + w₂ × log_b(token_usage))
+```
+
+Where:
+- `w₁` = `FORMULA_WEIGHT_CALL_COUNT` (default: 0.5)
+- `w₂` = `FORMULA_WEIGHT_TOKEN_COUNT` (default: 0.5)
+- `α` = `COST_SPREADING_FACTOR` (default: 0.03)
+- `b` = `TOKEN_USAGE_LOG_BASE` (default: 100.0)
+
+**How it works**:
+- **Call count penalty**: `ln(10 + 0.03 × call_count)` grows from 2.30 → 3.69 (0→1000 calls)
+- **Token usage penalty**: `log₁₀₀(token_usage)` grows from 1.0 → 3.0 (100→1M tokens)
+- **Weighted combination**: Allows tuning emphasis between rate limiting vs cost optimization
+- **Additive penalties**: Same penalty for all models regardless of base cost
+- Token usage starts at `TOKEN_USAGE_LOG_BASE` for new models (fair baseline)
+
+**Tuning strategies**:
+| Strategy | w₁ (call) | w₂ (token) | Best For |
+|----------|-----------|------------|----------|
+| **Default** | 0.5 | 0.5 | Balanced load |
+| **Call-focused** | 0.7 | 0.3 | High QPS, rate limiting |
+| **Token-focused** | 0.3 | 0.7 | Cost optimization |
+| **Call-only** | 1.0 | 0.0 | Pure request distribution |
+| **Token-only** | 0.0 | 1.0 | Pure cost optimization |
+
+**Best practice**: Keep `w₁ + w₂ = 1.0` for consistent penalty scaling.
 
 ### Configuration
 
@@ -463,6 +508,9 @@ Configuration is loaded from environment variables via `pydantic-settings`:
 - Optional: `FALLBACK_MODEL` (default: `"gpt-4o-mini"`) - Overrides `enabled=False` flag in capabilities CSV
 - Optional: `MODERATION_API_CHECK_REQ` (default: `True`) - Controls whether LLM moderation API is called
 - Optional: `COST_SPREADING_FACTOR` (default: `0.03`) - Controls exponential penalty for model usage
+- Optional: `TOKEN_USAGE_LOG_BASE` (default: `100.0`) - Base value for logarithmic token usage scaling
+- Optional: `FORMULA_WEIGHT_CALL_COUNT` (default: `0.5`) - Weight for call frequency penalty (should sum to 1.0 with token weight)
+- Optional: `FORMULA_WEIGHT_TOKEN_COUNT` (default: `0.5`) - Weight for token volume penalty (should sum to 1.0 with call weight)
 - Optional: `USE_OLLAMA_CLOUD_URL` (default: `False`) - Enable Ollama cloud URL for remote deployments
 - Optional: `OLLAMA_CLOUD_URL` (default: `"https://ollama.com"`) - Ollama cloud endpoint URL
 - Optional: `OLLAMA_API_KEY` (default: `""`) - API key for Ollama cloud endpoint authentication
@@ -495,6 +543,13 @@ MODERATION_API_CHECK_REQ=true
 
 # Optional: Cost spreading for load balancing
 COST_SPREADING_FACTOR=0.03
+
+# Optional: Token usage log base for scaling
+TOKEN_USAGE_LOG_BASE=100.0
+
+# Optional: Penalty weights (must sum to 1.0 for consistent behavior)
+FORMULA_WEIGHT_CALL_COUNT=0.5
+FORMULA_WEIGHT_TOKEN_COUNT=0.5
 
 # Optional: Ollama cloud URL for Docker/remote deployments
 USE_OLLAMA_CLOUD_URL=true

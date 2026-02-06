@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     MODERATION_API_CHECK_REQ: bool = True
     COST_SPREADING_FACTOR: float = 0.03
     TOKEN_USAGE_LOG_BASE: float = 100.0
+    FORMULA_WEIGHT_CALL_COUNT: float = 0.5
+    FORMULA_WEIGHT_TOKEN_COUNT: float = 0.5
     ENABLE_LANGSMITH_TRACING_V2: str = "false"
     USE_OLLAMA_CLOUD_URL: bool = False
     OLLAMA_CLOUD_URL: str = "https://ollama.com"

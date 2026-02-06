@@ -53,8 +53,9 @@ async def select_models(task: str, top_n: int = 5) -> List[str]:
             token_usage = model_usage.get_model_token_usage(model)
             factor_token = math.log(token_usage, settings.TOKEN_USAGE_LOG_BASE)
             models_used_in_past: int = model_usage.get_model_usage(model)
-            factor = math.exp(settings.COST_SPREADING_FACTOR * models_used_in_past)
-            derived_cost: float = cost * (factor + factor_token)
+            factor = math.log(1e1 + (settings.COST_SPREADING_FACTOR * models_used_in_past))
+            derived_cost: float = cost * ((settings.FORMULA_WEIGHT_CALL_COUNT * factor) +
+                                          (settings.FORMULA_WEIGHT_TOKEN_COUNT * factor_token))
             logging.info(f"{model}: c: {cost:3.3f} |, D: {derived_cost:3.3f} |, factor:{factor:1.5f} | ,"
                          f" usage: {models_used_in_past} | token_usage: {token_usage}")
             candidates.append((model, derived_cost))

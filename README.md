@@ -79,6 +79,45 @@ gpt-4o-mini,0.035
 - Relative: Current directory (`./config/costs.csv`)
 - Absolute: Docker mount (`/app/config/costs.csv`)
 
+#### 📊 **Dynamic Cost Calculation with Weighted Penalties** 🆕
+The router tracks token usage and call frequency per model, applying configurable weighted penalties:
+
+```python
+# Token usage tracking
+model_usage.add_model_token_usage(model_name, token_count)
+
+# Dynamic cost calculation with weighted penalties
+derived_cost = base_cost × (w₁ × ln(10 + α × call_count) + w₂ × log_b(token_usage))
+```
+
+**Where**:
+- `w₁` = `FORMULA_WEIGHT_CALL_COUNT` (default: 0.5) - weight for call frequency
+- `w₂` = `FORMULA_WEIGHT_TOKEN_COUNT` (default: 0.5) - weight for token volume
+- `α` = `COST_SPREADING_FACTOR` (default: 0.03) - spreading aggression
+- `b` = `TOKEN_USAGE_LOG_BASE` (default: 100.0) - log scaling base
+
+**How it works**:
+- Tracks both call frequency and token consumption per model
+- Logarithmic scaling ensures gentle, predictable penalty growth
+- Additive combination means same penalty for all models regardless of base cost
+- Configurable weights allow tuning for rate limiting vs cost optimization
+
+**Configuration**:
+```bash
+# Penalty weights (must sum to 1.0 for consistent behavior)
+FORMULA_WEIGHT_CALL_COUNT=0.5    # Weight for call frequency penalty
+FORMULA_WEIGHT_TOKEN_COUNT=0.5   # Weight for token volume penalty
+
+# Scaling parameters
+TOKEN_USAGE_LOG_BASE=100.0       # Base for log scaling
+COST_SPREADING_FACTOR=0.03       # Penalty aggression
+```
+
+**Tuning strategies**:
+- **Call-focused** (w₁=0.7, w₂=0.3): Prevent API throttling, prioritize request distribution
+- **Token-focused** (w₁=0.3, w₂=0.7): Optimize for actual dollar cost
+- **Balanced** (w₁=0.5, w₂=0.5): Equal emphasis on both factors (default)
+
 #### 📝 **External Prompt System** 🆕
 All system prompts are stored as external `.prompt` files - no code changes needed:
 ```bash
@@ -578,7 +617,7 @@ pytest -m '' tests/end_to_end/
 pytest tests/unit_tests/test_combiner.py -v
 ```
 
-**Test Stats**: 🧪 343 test cases covering edge cases like special characters, long inputs, model resolution logic, CSV path resolution, and prompt loading/formatting. That's more test coverage than your ex has commitment issues.
+**Test Stats**: 🧪 431 test cases covering edge cases like special characters, long inputs, model resolution logic, CSV path resolution, token usage tracking, and prompt loading/formatting. That's more test coverage than your ex has commitment issues.
 
 ---
 
