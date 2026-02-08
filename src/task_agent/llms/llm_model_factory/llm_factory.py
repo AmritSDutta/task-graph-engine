@@ -52,6 +52,8 @@ def resolve_provider(model: str) -> str:
         "chatgpt-": "openai",
         "moonshotai/": "groq",
         "gemini-": "google",
+        "gemma-3-27b-it": "google",
+        "gemma-3-12b-it": "google",
         "llama-3.3-70b": "groq",
         "llama-3.1-8b": "groq",
         "qwen/": "groq",
@@ -61,7 +63,7 @@ def resolve_provider(model: str) -> str:
         "GLM-4.7-Flash": "Zhipu",
         "glm-": "ollama",  # Must come after specific Zhipu GLM prefixes
         "llama": "ollama",
-        "gemma": "ollama",
+        "gemma3:27b": "ollama",
         "sarvam-m": "sarvam",
     }
 

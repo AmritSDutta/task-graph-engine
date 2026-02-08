@@ -37,6 +37,11 @@ class TestResolveProvider:
         assert resolve_provider("qwen/qwen-2.5-72b-instruct") == "groq"
         assert resolve_provider("qwen/qwen3-32b") == "groq"
 
+    def test_resolve_google_gemma3_it_models(self):
+        """New Google Gemma 3 IT models."""
+        assert resolve_provider("gemma-3-27b-it") == "google"
+        assert resolve_provider("gemma-3-12b-it") == "google"
+
     def test_resolve_groq_qwen_dash_prefix(self):
         # Only models starting with "qwen/" get mapped to groq by the slash prefix
         # Models like "qwen3-32b" don't have "qwen-" prefix, so this test is removed
@@ -58,8 +63,10 @@ class TestResolveProvider:
         assert resolve_provider("llama-3.1-405b") == "ollama"
 
     def test_resolve_ollama_gemma_prefix(self):
-        assert resolve_provider("gemma-3-27b") == "ollama"
+        # gemma3:27b prefix matches Ollama (cloud deployment)
         assert resolve_provider("gemma3:27b") == "ollama"
+        # gemma3:27b-cloud also resolves to Ollama via cloud suffix
+        assert resolve_provider("gemma3:27b-cloud") == "ollama"
 
     def test_resolve_unsupported_model_raises_error(self):
         with pytest.raises(ValueError, match="Unsupported model"):
@@ -73,6 +80,8 @@ class TestResolveProvider:
         error_msg = str(exc_info.value)
         assert "chatgpt-" in error_msg
         assert "gemini-" in error_msg
+        assert "gemma-3-27b-it" in error_msg
+        assert "gemma-3-12b-it" in error_msg
         assert "gpt-" in error_msg
         assert "qwen/" in error_msg
         assert "qwen-" in error_msg
@@ -158,6 +167,8 @@ class TestCreateLlm:
             "moonshotai/kimi-k2-instruct",
             "gemini-2.0-flash-exp",
             "gemini-3-flash-preview:cloud",
+            "gemma-3-27b-it",
+            "gemma-3-12b-it",
             "qwen/qwen-2.5-72b-instruct",
             "qwen/qwen3-32b",
             "qwen3-coder:480b-cloud",
