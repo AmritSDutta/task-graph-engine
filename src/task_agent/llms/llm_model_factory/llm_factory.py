@@ -99,6 +99,10 @@ def create_llm(model: str, **kwargs) -> BaseChatModel:
                 "timeout": 60.0  # Timeout in seconds
             }
         )
+    elif provider == 'sarvam':
+        return SarvamChat(
+            wiki_grounding=False
+        )
     return constructor(model=model, **kwargs)
 
 

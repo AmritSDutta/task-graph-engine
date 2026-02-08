@@ -22,7 +22,10 @@ class Settings(BaseSettings):
     TOKEN_USAGE_LOG_BASE: float = 100.0
     FORMULA_WEIGHT_CALL_COUNT: float = 0.5
     FORMULA_WEIGHT_TOKEN_COUNT: float = 0.5
+
     ENABLE_LANGSMITH_TRACING_V2: str = "false"
+    LANGSMITH_PROJECT: str = "task-graph-engine"
+
     USE_OLLAMA_CLOUD_URL: bool = False
     OLLAMA_CLOUD_URL: str = "https://ollama.com"
 

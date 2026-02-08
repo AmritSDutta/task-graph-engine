@@ -6,6 +6,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 from task_agent.config import settings
 from task_agent.llms.llm_model_factory.llm_factory import create_llm
+from task_agent.llms.simple_llm_selector.models import get_model_capabilities
 from task_agent.utils.model_live_usage import get_model_usage_singleton, ModelLiveUsage
 from task_agent.utils.tools import get_web_search_tool
 
@@ -67,7 +68,7 @@ async def _invoke_with_retry(llm, prompt, model_name) -> AIMessage:
     # Log completion with timing and token usage
     if token_usage:
         model_usage.add_model_token_usage(model_name,
-                                          token_usage.get('total_tokens', settings.TOKEN_USAGE_LOG_BASE))
+                                          token_usage.get('total_tokens', 5 * settings.TOKEN_USAGE_LOG_BASE))
         logger.info(
             f"LLM call to [{model_name}] completed in {elapsed:.3f}s | "
             f"Tokens: in {token_usage.get('input_tokens', 'N/A')} in, "
@@ -75,7 +76,7 @@ async def _invoke_with_retry(llm, prompt, model_name) -> AIMessage:
             f" total{token_usage.get('total_tokens', 'N/A')}"
         )
     else:
-        model_usage.add_model_token_usage(model_name, settings.TOKEN_USAGE_LOG_BASE)  # in case token data missing
+        model_usage.add_model_token_usage(model_name, 5 * settings.TOKEN_USAGE_LOG_BASE)  # in case token data missing
         logger.info(f"LLM call to [{model_name}] completed in {elapsed:.3f}s")
 
     # Add timing metadata to response metadata if available
@@ -124,7 +125,7 @@ async def call_llm_with_retry(
 
     # bind search tools FIRST (before structured output)
     # Note: with_structured_output() returns RunnableSequence which doesn't have bind_tools()
-    if bind_tools_flag:
+    if bind_tools_flag and "tools" in get_model_capabilities(model_name):
         llm = llm.bind_tools([get_web_search_tool()])
 
     # Apply structured output AFTER binding tools
@@ -144,7 +145,7 @@ async def call_llm_with_retry(
             logger.warning(f"Falling back to {fallback_model}")
             llm_fallback = create_llm(fallback_model, **kwargs)
             # bind tools first, then structured output
-            if bind_tools_flag:
+            if bind_tools_flag and "tools" in get_model_capabilities(fallback_model):
                 llm_fallback = llm_fallback.bind_tools([get_web_search_tool()])
             if structured_output:
                 llm_fallback = llm_fallback.with_structured_output(structured_output)

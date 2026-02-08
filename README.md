@@ -9,11 +9,11 @@ Meet **Task Graph Engine** - a LangGraph-based task planning system that thinks 
 ## ✨ What Makes This Special?
 
 ### 🎯 The Problem We Solve
-You've got 14 LLMs to choose from. Do you use GPT-4o for that simple summary? Gemini Flash for complex coding? Or maybe Ollama's local models for... something? 🤔
+You've got 25 LLMs to choose from. Do you use GPT-4o for that simple summary? Gemini Flash for complex coding? Or maybe Ollama's local models for... something? 🤔
 
 **We fix this analysis paralysis** by:
 1. **Inferring** what your task actually needs (coding? reasoning? just speed?)
-2. **Selecting** the best model for the job from 14 providers
+2. **Selecting** the best model for the job from 25 models across 6 providers
 3. **Optimizing** for cost without sacrificing quality
 
 ### 🚀 Novel Architecture Highlights
@@ -151,31 +151,18 @@ combiner = get_combiner_prompt(user_query="Analyze market trends")
 - Easy A/B testing by swapping files
 - Template variables with `{{variable}}` syntax
 
-#### 👁️ **Multimodal Image Analysis** 🆕
-Support for analyzing images through vision-capable LLMs:
-- **Automatic Detection**: System detects images in messages
-- **Vision-Aware Routing**: Selects models with vision capability when images are present
-- **Multiple Formats**: JPEG, PNG, GIF, WebP up to 20MB
-- **Base64 Encoding**: Images encoded as data URLs for LLM consumption
-- **Streamlit UI**: Web interface for easy image upload and testing
+#### 👁️ **Vision-Capable Models** 🆕
+Several models support vision capabilities for image analysis (when implemented):
+- **gpt-4o-mini**: OpenAI's cost-effective vision model
+- **gemini-2.5-flash**: Google's fast vision model
+- **gemini-2.5-flash-lite**: Google's cheapest vision option
+- **gemini-2.5-pro**: Google's high-end vision model
+- **gemini-3-flash-preview:cloud**: Latest Gemini vision via Ollama
+- **gemma3:27b-cloud**: Gemma vision model via Ollama
+- **gemma-3-27b-it**: Gemma vision via Google
+- **gemma-3-12b-it**: Smaller Gemma vision via Google
 
-**Supported Vision Models**:
-| Model | Provider | Cost |
-|-------|----------|------|
-| `gemini-2.5-flash-lite` | Google | Cheapest |
-| `gemini-2.5-flash` | Google | Low |
-| `gpt-4o-mini` | OpenAI | Medium |
-| `gpt-4o` | OpenAI | High |
-| `gemini-2.5-pro` | Google | High |
-
-**Usage**:
-```python
-# Multimodal message with text and image
-content = [
-    {"type": "text", "text": "Describe this image"},
-    {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}
-]
-```
+**Note**: Current implementation is **text-only**. Vision capability exists in model metadata but is not actively used for image processing.
 
 #### 🔄 **Two-Step Structured Output**
 LLMs hate complex nested schemas. So we trick them:
@@ -198,14 +185,15 @@ response = await llm.ainvoke(messages)
 ```
 
 #### 🌐 **Multi-Provider Support**
-19 models across 5 providers, one clean interface:
+25 models across 6 providers, one clean interface:
 | Provider | Models | Specialty |
 |----------|--------|-----------|
-| **OpenAI** | gpt-4o, gpt-4o-mini, gpt-5-* | General purpose |
-| **Google** | gemini-2.5-*/flash-lite/pro, gemini-3-* | Speed & reasoning |
-| **Groq** | qwen-2.5, qwen3 | Fast inference |
-| **Ollama** | llama, gemma3, glm-4.6:cloud, qwen3-coder, kimi-k2.5 | Local deployment |
+| **OpenAI** | gpt-4o-mini, gpt-5-mini, gpt-5-nano, gpt-4.1-nano | General purpose |
+| **Google** | gemini-2.5-*/flash-lite/pro, gemini-3-*, gemma-3-* | Speed & reasoning |
+| **Groq** | qwen-2.5, qwen3, llama-3.* | Fast inference |
+| **Ollama** | gemma3, glm-4.6:cloud, qwen3-coder, kimi-k2.5, deepseek-v3.1, gpt-oss | Local deployment |
 | **Zhipu** | GLM-4.5/4.6V/4.7-Flash | Chinese models |
+| **Sarvam AI** | sarvam-m | Default inference model |
 
 ---
 
@@ -315,7 +303,7 @@ All environment variables from `.env.example` can be passed to Docker:
 | `GOOGLE_API_KEY` | Yes | - | Google API key |
 | `ANTHROPIC_API_KEY` | No | - | Anthropic API key |
 | `TAVILY_API_KEY` | No | - | Tavily web search API key |
-| `INFERENCE_MODEL` | No | `kimi-k2.5:cloud` | Default inference model |
+| `INFERENCE_MODEL` | No | `sarvam-m` | Default inference model |
 | `MODERATION_API_CHECK_REQ` | No | `true` | Enable LLM moderation API |
 | `COST_SPREADING_FACTOR` | No | `0.03` | Load balancing penalty factor |
 | `USE_OLLAMA_CLOUD_URL` | No | `false` | Enable Ollama cloud URL for remote deployments |
@@ -398,22 +386,22 @@ curl -H "Authorization: Bearer your-secret-api-key-here" \
   "status": "healthy",
   "version": "1.0.0",
   "auth_required": false,
-  "models_loaded": 22
+  "models_loaded": 25
 }
 ```
 
 **List Models**:
 ```json
 {
-  "count": 22,
+  "count": 25,
   "models": {
     "gpt-4o-mini": {
-      "capabilities": ["cheap", "coding", "fast", "informational", "reasoning", "tools"],
-      "cost": 0.035,
+      "capabilities": ["cheap", "coding", "fast", "informational", "reasoning", "tools", "vision", "long", "synthesizing", "summarizing"],
+      "cost": 1.35,
       "is_coding_priority": false
     },
     "qwen3-coder:480b-cloud": {
-      "capabilities": ["cheap", "coding", "informational", "reasoning", "tools"],
+      "capabilities": ["cheap", "coding", "fast", "informational", "reasoning"],
       "cost": 0.013,
       "is_coding_priority": true
     }
@@ -538,12 +526,11 @@ The actual flow is:
 
 ## 🖥️ Streamlit Web UI
 
-A user-friendly web interface for testing the Task Graph Engine with support for both text-only queries and multimodal image analysis.
+A user-friendly web interface for testing the Task Graph Engine with text-only queries.
 
 ### Features
 
 - **Text Queries**: Submit tasks and questions in natural language
-- **Image Upload**: Attach images (JPEG, PNG, GIF, WebP) for vision model analysis
 - **Real-time Progress**: Watch task execution with live status updates
 - **Model Info**: View available models and their capabilities
 - **Thread Management**: Create new threads or continue conversations
@@ -561,32 +548,21 @@ streamlit run ui/app.py
 
 **Access the UI**: http://localhost:8501
 
-### Using the Image Analysis Feature
+### Example Queries
 
-1. **Enter your message** in the text area (e.g., "Analyze this image and describe what you see")
-2. **Upload an image** using the file uploader (supports JPEG, PNG, GIF, WebP up to 20MB)
-3. **Click "Run Analysis"** to submit your request
-4. **Watch the progress** as the system:
-   - Creates a thread
-   - Detects the image and selects a vision-capable model
-   - Plans the analysis with TODOs
-   - Executes parallel subtasks
-   - Synthesizes the final report
-
-### Example Image Analysis Queries
-
-- "Analyze the attached image and describe what you see"
-- "Extract and transcribe any text visible in this image"
-- "What type of chart is shown? Describe the data trends"
-- "Compare the items in this image"
-- "Is there anything unusual or concerning in this image?"
+- "Analyze why gold prices are surging and what the trends suggest"
+- "Write a Python function to validate email addresses"
+- "Compare quantum computing vs classical computing approaches"
+- "Explain the principles of RESTful API design"
 
 ### Screenshot Preview
 
 The UI displays:
-- **Sidebar**: System info, available vision models, supported formats
-- **Main Area**: Split view with message input and image upload
+- **Sidebar**: System info, available models, capabilities overview
+- **Main Area**: Text input area for queries
 - **Results**: Final report with expandable execution details
+
+**Note**: The UI currently supports text-only input. Images are not processed.
 
 ---
 
@@ -617,7 +593,7 @@ pytest -m '' tests/end_to_end/
 pytest tests/unit_tests/test_combiner.py -v
 ```
 
-**Test Stats**: 🧪 431 test cases covering edge cases like special characters, long inputs, model resolution logic, CSV path resolution, token usage tracking, and prompt loading/formatting. That's more test coverage than your ex has commitment issues.
+**Test Stats**: 🧪 434 test cases covering edge cases like special characters, long inputs, model resolution logic, CSV path resolution, token usage tracking, prompt loading/formatting, and capability-based tool binding. That's more test coverage than your ex has commitment issues.
 
 ---
 
@@ -630,8 +606,8 @@ All settings via environment variables (`.env` file):
 OPENAI_API_KEY=sk-...
 GOOGLE_API_KEY=AIza...
 
-# Optional (inference model)
-INFERENCE_MODEL=kimi-k2.5:cloud
+# Optional (inference model) - default is sarvam-m
+INFERENCE_MODEL=sarvam-m
 
 # Optional (fallback model - overrides enabled flag if disabled)
 FALLBACK_MODEL=gpt-4o-mini
@@ -714,11 +690,16 @@ The most important log line to monitor is the **EXECUTION SUMMARY**. This confir
 
 **Technical Details**:
 
-The system uses web search tools for subtasks that may need current information. However, the combiner must synthesize text responses, not make tool calls. To handle this:
+The system uses web search tools for subtasks that may need current information. However, not all models support function calling. The implementation now:
 
-1. **Default behavior**: `call_llm_with_retry()` binds web search tools to all LLM calls
-2. **Combiner exception**: The combiner passes `bind_tools_flag=False` to skip tool binding
-3. **Result**: Combiner always receives text content that can be logged and returned to the user
+1. **Checks model capabilities**: `call_llm_with_retry()` verifies `"tools" in get_model_capabilities(model_name)` before binding
+2. **Smart tool binding**: Only models with `tools=True` in the CSV get web search tools bound
+3. **Combiner exception**: The combiner passes `bind_tools_flag=False` to skip tool binding entirely
+4. **Result**: Models without tool capability (like `qwen3-coder:480b-cloud`, `gemma-3-27b-it`, `glm-4.6:cloud`) don't fail with tool-binding errors
+
+**Models WITH tools capability** (19 models): gpt-4o-mini, gpt-5-mini, gpt-5-nano, gpt-4.1-nano, gemini-2.5-flash, gemini-2.5-flash-lite, gemini-2.5-pro, gemini-3-flash-preview:cloud, qwen/qwen-2.5-72b-instruct, qwen/qwen3-32b, qwen3-coder:480b-cloud, gemma3:27b-cloud, GLM-4.5-Flash, GLM-4.6V-Flash, GLM-4.7-Flash, llama-3.3-70b-versatile, llama-3.1-8b-instant, kimi-k2.5:cloud, deepseek-v3.1:671b-cloud
+
+**Models WITHOUT tools capability** (5 models): moonshotai/kimi-k2-instruct, gemma-3-27b-it, gemma-3-12b-it, glm-4.6:cloud, gpt-oss:20b-cloud
 
 **Implementation** (`src/task_agent/utils/nodes.py`):
 ```python
@@ -778,8 +759,9 @@ Task: {{task}}
 - [x] **Cost Tracking**: Token usage and cost logging per task 💰 (so you know exactly how much this brilliance cost)
 - [x] **Docker Support**: Containerize for easy deployment 🐳 (works on my machine → works in the container → hopefully works in production)
 - [x] **REST API**: Custom endpoints for monitoring and configuration 🌐 (API-first, always)
-- [x] **Image Analysis**: Multimodal support for vision-capable models 👁️ (what does this meme *mean*?)
-- [x] **Streamlit UI**: Web interface for testing with image upload 🖥️ (for when you're tired of curl commands)
+- [x] **Streamlit UI**: Web interface for testing 🖥️ (for when you're tired of curl commands)
+- [x] **Capability-Based Tool Binding**: Only bind tools to models that support function calling 🔧 (prevents errors with non-tool-capable models)
+- [ ] **Image Analysis**: Multimodal support for vision-capable models 👁️ (what does this meme *mean*?)
 - [ ] **Multi-Agent Evaluation**: Implement `CombinedPlan` for parallel agent evaluation (divide and conquer, but make it AI)
 - [ ] **Monitoring**: OpenTelemetry metrics and tracing 📊 (because "it's slow" is not a helpful bug report)
 - [ ] **Rate Limiting**: Per-user quotas to prevent bill shock 🛡️ (your wallet will thank us)

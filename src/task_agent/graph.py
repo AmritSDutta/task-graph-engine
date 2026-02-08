@@ -13,6 +13,7 @@ from task_agent.utils.state import Context, TaskState
 
 setup_logging()
 os.environ["LANGSMITH_TRACING_V2"] = settings.ENABLE_LANGSMITH_TRACING_V2
+os.environ["LANGSMITH_PROJECT"] = settings.LANGSMITH_PROJECT
 
 # this name is mentioned in langgraph.json
 graph = (
