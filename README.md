@@ -239,7 +239,8 @@ langgraph dev --allow-blocking  # Watch the magic happen
    docker logs -f task-graph-engine-langgraph-api-1 (or something similar)
 6. update connecting url from langsmith to connect or check
 http://localhost:8123/docs
-
+7. in case docker deployment failing for dependencies, add in .env file
+PYTHONPATH=/deps/task-graph-engine/src
 
 ### Docker Environment Variables
 
