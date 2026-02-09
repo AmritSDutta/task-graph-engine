@@ -218,6 +218,7 @@ cp .env.example .env
 # Start LangGraph dev server
 # Use --allow-blocking for community models (z.ai, nvidia, etc.)
 langgraph dev --allow-blocking  # Watch the magic happen
+
 ```
 
 > **Note**: Some LangChain community integrations (like `langchain-nvidia-ai-core`, `langchain-community`, `z.ai`) use synchronous HTTP calls internally. The `--allow-blocking` flag prevents LangGraph from throwing warnings about blocking calls in an async context.
@@ -229,71 +230,18 @@ langgraph dev --allow-blocking  # Watch the magic happen
 - Interactive Docs: http://127.0.0.1:2024/docs
 - LangSmith Studio: https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
 
-### Docker Deployment
+## Dockerization:
+1. fill .env with required AUTH keys or override properties from config.py
+2. start docker backend or confirm docker is running in the background
+3. langgraph up --recreate
+4. docker ps
+5. peek inside container :
+   docker logs -f task-graph-engine-langgraph-api-1 (or something similar)
+6. update connecting url from langsmith to connect or check
+http://localhost:8123/docs
 
-For production or containerized environments, you can use Docker:
 
-#### Option 1: Docker Compose (Recommended)
-
-```bash
-# Copy environment template and configure
-cp .env.example .env
-# Edit .env with your API keys
-
-# Start the container
-docker-compose up -d
-
-# View logs
-docker-compose logs -f task-graph
-
-# Stop the container
-docker-compose down
-```
-
-#### Option 2: Docker Build & Run
-
-```bash
-# Build the image
-docker build -t task-graph-engine .
-
-# Run the container with API keys
-docker run -d \
-  --name task-graph-engine \
-  -p 2024:2024 \
-  -e OPENAI_API_KEY=sk-... \
-  -e GOOGLE_API_KEY=AIza... \
-  task-graph-engine
-
-# View logs
-docker logs -f task-graph-engine
-
-# Stop the container
-docker stop task-graph-engine && docker rm task-graph-engine
-```
-
-#### Custom Model Configuration
-
-To use custom model configuration files:
-
-```bash
-# Using docker-compose
-# Uncomment the volumes section in docker-compose.yml
-volumes:
-  - ./config/model_costs.csv:/app/model_costs.csv:ro
-  - ./config/model_capabilities.csv:/app/model_capabilities.csv:ro
-
-# Or using docker run
-docker run -d \
-  --name task-graph-engine \
-  -p 2024:2024 \
-  -e OPENAI_API_KEY=sk-... \
-  -e GOOGLE_API_KEY=AIza... \
-  -v $(pwd)/config/model_costs.csv:/app/model_costs.csv:ro \
-  -v $(pwd)/config/model_capabilities.csv:/app/model_capabilities.csv:ro \
-  task-graph-engine
-```
-
-#### Docker Environment Variables
+### Docker Environment Variables
 
 All environment variables from `.env.example` can be passed to Docker:
 
