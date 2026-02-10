@@ -17,4 +17,4 @@ langchain-ollama>=1.0.1
 langchain-openai>=1.1.7
 protobuf>=6.33.4
 typing-extensions>=4.15.0
-langchain-sarvam-integration>=0.1.4
+langchain-sarvam-integration>=0.1.7
