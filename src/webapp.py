@@ -198,6 +198,7 @@ async def get_statistics(
         usage_count = model_usage.get_model_usage(model_name)
         if usage_count > 0:
             base_cost = get_model_cost(model_name)
+            token_usage_count = model_usage.get_model_token_usage(model_name)
             # Calculate derived cost with exponential penalty
             import math
 
@@ -208,6 +209,7 @@ async def get_statistics(
                 "base_cost": base_cost,
                 "derived_cost": round(derived_cost, 4),
                 "penalty_factor": round(factor, 4),
+                "token_usage": token_usage_count,
             }
 
     return {

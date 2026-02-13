@@ -336,7 +336,11 @@ class TestGetStatisticsEndpoint:
         def mock_get_usage(model):
             return 10 if model == "gpt-4o-mini" else 0
 
+        def mock_get_token_usage(model):
+            return 1500.0 if model == "gpt-4o-mini" else 0.0
+
         mock_usage_tracker.get_model_usage.side_effect = mock_get_usage
+        mock_usage_tracker.get_model_token_usage.side_effect = mock_get_token_usage
 
         with patch("webapp.settings") as mock_settings:
             mock_settings.REQUIRE_AUTH = False
@@ -359,6 +363,7 @@ class TestGetStatisticsEndpoint:
                         gpt_stats = data["models"]["gpt-4o-mini"]
                         assert gpt_stats["usage_count"] == 10
                         assert gpt_stats["base_cost"] == 0.15
+                        assert gpt_stats["token_usage"] == 1500.0
                         assert "derived_cost" in gpt_stats
                         assert "penalty_factor" in gpt_stats
 
@@ -390,7 +395,11 @@ class TestGetStatisticsEndpoint:
         def mock_get_usage(model):
             return 5 if model == "gpt-4o-mini" else 0
 
+        def mock_get_token_usage(model):
+            return 750.0 if model == "gpt-4o-mini" else 0.0
+
         mock_usage_tracker.get_model_usage.side_effect = mock_get_usage
+        mock_usage_tracker.get_model_token_usage.side_effect = mock_get_token_usage
 
         with patch("webapp.settings") as mock_settings:
             mock_settings.REQUIRE_AUTH = False
@@ -408,6 +417,8 @@ class TestGetStatisticsEndpoint:
                         gpt_stats = data["models"]["gpt-4o-mini"]
                         expected_cost = 0.15 * (2.71828 ** (0.03 * 5))
                         assert abs(gpt_stats["derived_cost"] - round(expected_cost, 4)) < 0.001
+                        # Verify token_usage field is present
+                        assert gpt_stats["token_usage"] == 750.0
 
     def test_get_statistics_with_auth(self, client, mock_model_capabilities, mock_model_costs, mock_usage_tracker):
         """Test statistics endpoint with authentication."""
