@@ -10,6 +10,7 @@ from langgraph.types import Command, Send
 from pydantic import BaseModel
 from tavily import TavilyClient
 
+from task_agent.config import settings
 from task_agent.data_objs.task_details import TODOs, TODO_details, TODOs_Output
 from task_agent.llms.prompts import get_planner_prompt, get_subtask_prompt, get_combiner_prompt, \
     get_combiner_prompt_only
@@ -99,11 +100,13 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
     system_prompt = get_planner_prompt()
     prompt = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": gbt}
+
     ]
     if tool_call_result:
         search_context = format_tavily_result(tool_call_result)
-        prompt.append({"role": "user", "content": 'Additional details-\n' + search_context})
+        prompt.append({"role": "user", "content": gbt + '\nAdditional details-\n' + search_context})
+    else:
+        prompt.append( {"role": "user", "content": gbt})
 
     cheapest = await get_cheapest_model(str(prompt))
     logging.info(f"[Planner] Model: {cheapest}")
@@ -112,7 +115,7 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
         simple_todos = await call_llm_with_retry(
             cheapest,
             prompt,
-            fallback_model="gpt-4o-mini",  # Fallback to GPT-4o if cheapest fails
+            fallback_model=settings.FALLBACK_MODEL,
             structured_output=SimpleTODOList,
             temperature=0.0
         )
@@ -179,7 +182,7 @@ async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
         response: AIMessage = await call_llm_with_retry(
             cheapest,
             prompt,
-            fallback_model="gpt-4o-mini",
+            fallback_model=settings.FALLBACK_MODEL,
             temperature=0.0
         )
     except Exception as e:
@@ -243,7 +246,7 @@ async def call_combiner_model(state: TaskState, runtime: Runtime[Context]) -> Co
         response: AIMessage = await call_llm_with_retry(
             cheapest,
             prompt,
-            fallback_model="gpt-4o-mini",
+            fallback_model=settings.FALLBACK_MODEL,
             temperature=0.0,
             bind_tools_flag=False  # Don't bind tools for combiner
         )

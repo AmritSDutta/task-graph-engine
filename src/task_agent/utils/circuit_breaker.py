@@ -68,15 +68,17 @@ async def _invoke_with_retry(llm, prompt, model_name) -> AIMessage:
     # Log completion with timing and token usage
     if token_usage:
         model_usage.add_model_token_usage(model_name,
-                                          token_usage.get('total_tokens', 5 * settings.TOKEN_USAGE_LOG_BASE))
+                                          max(token_usage.get('total_tokens', 0),
+                                              10 * settings.TOKEN_USAGE_LOG_BASE)
+                                          )
         logger.info(
             f"LLM call to [{model_name}] completed in {elapsed:.3f}s | "
-            f"Tokens: in {token_usage.get('input_tokens', 'N/A')} in, "
-            f" out {token_usage.get('output_tokens', 'N/A')}, "
-            f" total{token_usage.get('total_tokens', 'N/A')}"
+            f"Tokens:[ IN {token_usage.get('input_tokens', 'N/A')}, "
+            f" Out {token_usage.get('output_tokens', 'N/A')}, "
+            f" total {token_usage.get('total_tokens', 'N/A')} ]"
         )
     else:
-        model_usage.add_model_token_usage(model_name, 5 * settings.TOKEN_USAGE_LOG_BASE)  # in case token data missing
+        model_usage.add_model_token_usage(model_name, 10 * settings.TOKEN_USAGE_LOG_BASE)  # in case token data missing
         logger.info(f"LLM call to [{model_name}] completed in {elapsed:.3f}s")
 
     # Add timing metadata to response metadata if available
