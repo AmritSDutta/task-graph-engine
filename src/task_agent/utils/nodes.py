@@ -8,6 +8,7 @@ from langgraph.constants import END
 from langgraph.runtime import Runtime
 from langgraph.types import Command, Send
 from pydantic import BaseModel
+from tavily import TavilyClient
 
 from task_agent.data_objs.task_details import TODOs, TODO_details, TODOs_Output
 from task_agent.llms.prompts import get_planner_prompt, get_subtask_prompt, get_combiner_prompt, \
@@ -87,11 +88,22 @@ async def call_planner_model(state: TaskState, runtime: Runtime[Context]) -> Com
         logging.info(ctm)
         return Command(update={"retry_count": state["retry_count"], "messages": state["messages"]}, goto=END)
 
+    tavily = TavilyClient()
+    tool_call_result = None
+    try:
+        tool_call_result = tavily.search(query=gbt[:399], max_results=10)
+
+    except Exception as e:
+        logging.error(f"[Planner] Error calling tavily: {e}")
+
     system_prompt = get_planner_prompt()
     prompt = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": gbt}
     ]
+    if tool_call_result:
+        search_context = format_tavily_result(tool_call_result)
+        prompt.append({"role": "user", "content": 'Additional details-\n' + search_context})
 
     cheapest = await get_cheapest_model(str(prompt))
     logging.info(f"[Planner] Model: {cheapest}")
@@ -143,14 +155,26 @@ async def call_subtask_model(state: TaskState, runtime: Runtime[Context]):
     logging.info(f'subtask formatted: {formatted_system_prompt}')
     todo_formated = f"ID: {todo.todo_id}\nTitle: {todo.todo_name}\nDescription: {todo.todo_description}"
 
-    cheapest = await get_cheapest_model(formatted_system_prompt)
-    logging.info(f"[{todo.todo_id}] Model: {cheapest}")
+    tavily = TavilyClient()
+    tool_call_result = None
+    try:
+        tool_call_result = tavily.search(query=todo_formated, max_results=10)
+
+    except Exception as e:
+        logging.error(f"[subtask] Error calling tavily: {e}")
 
     # Combine system prompt with user input
     prompt = [
         {"role": "system", "content": formatted_system_prompt},
         {"role": "user", "content": todo_formated}
     ]
+    if tool_call_result:
+        search_context = format_tavily_result(tool_call_result)
+        prompt.append({"role": "user", "content": 'Additional details\n ' + search_context})
+
+    cheapest = await get_cheapest_model(str(prompt))
+    logging.info(f"[{todo.todo_id}] Model: {cheapest}")
+
     try:
         response: AIMessage = await call_llm_with_retry(
             cheapest,
@@ -311,3 +335,41 @@ async def end_node(state: TaskState, runtime: Runtime[Context]):
     logging.info(f"Total task time: {total_duration.total_seconds():.2f}s")
     logging.info("=" * 60)
     return state
+
+
+def format_tavily_result(search_response) -> str:
+    """Format Tavily SearchResponse object or dict into readable text."""
+    if not search_response:
+        return ""
+
+    parts = []
+
+    # Handle dict response (from raw Tavily API)
+    if isinstance(search_response, dict):
+        # Add direct answer if available
+        if search_response.get('answer'):
+            parts.append(f"Answer: {search_response['answer']}")
+
+        # Add search results
+        results = search_response.get('results', [])
+        for i, result in enumerate(results, 1):
+            title = result.get('title', 'No title')
+            url = result.get('url', '')
+            content = result.get('content', '')
+            parts.append(f"\n[i] {title}\nURL: {url}\n{content}")
+
+    # Handle object response (Tavily SearchResponse)
+    else:
+        # Add direct answer if available
+        if hasattr(search_response, 'answer') and search_response.answer:
+            parts.append(f"Answer: {search_response.answer}")
+
+        # Add search results
+        if hasattr(search_response, 'results'):
+            for i, result in enumerate(search_response.results, 1):
+                title = getattr(result, 'title', 'No title')
+                url = getattr(result, 'url', '')
+                content = getattr(result, 'content', '')
+                parts.append(f"\n[i] {title}\nURL: {url}\n{content}")
+
+    return "\n".join(parts)

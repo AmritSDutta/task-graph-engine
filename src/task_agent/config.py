@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # Model Configurations
     INFERENCE_MODEL: str = "sarvam-m"  # other option : gpt-5-nano
-    FALLBACK_MODEL: str = "gpt-4o-mini"
+    FALLBACK_MODEL: str = "gpt-5-nano"
     INFERENCE_MAX_RETRY: int = 3
     MODERATION_API_CHECK_REQ: bool = True
     COST_SPREADING_FACTOR: float = 0.03
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     ENABLE_LANGSMITH_TRACING_V2: str = "false"
     LANGSMITH_PROJECT: str = "task-graph-engine"
 
-    USE_OLLAMA_CLOUD_URL: bool = False
+    USE_OLLAMA_CLOUD_URL: bool = True
     OLLAMA_CLOUD_URL: str = "https://ollama.com"
 
     MODEL_COST_CSV_PATH: str = "model_costs.csv"

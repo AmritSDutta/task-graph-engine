@@ -519,7 +519,7 @@ Configuration is loaded from environment variables via `pydantic-settings`:
 - Optional: `API_KEY` (default: `""`) - API key for protected REST endpoints
 - Optional: `REQUIRE_AUTH` (default: `false`) - Whether to require authentication for protected endpoints
 
-**Environment Setup:**
+**Environment Setup**:
 ```bash
 # Required for OpenAI models
 OPENAI_API_KEY=sk-...
@@ -565,14 +565,14 @@ API_KEY=your-secret-api-key-here
 REQUIRE_AUTH=true
 ```
 
-**CSV Path Resolution:**
+**CSV Path Resolution**:
 The `MODEL_COST_CSV_PATH` and `MODEL_CAPABILITY_CSV_PATH` settings support flexible path resolution:
 
 1. **Absolute path**: Used directly (e.g., `/app/config/model_costs.csv` for Docker mounts)
 2. **Relative path**: Resolved from current working directory (e.g., `./config/costs.csv`)
 3. **Filename only**: Resolved from project root (e.g., `model_costs.csv`)
 
-**Docker Examples:**
+**Docker Examples**:
 ```bash
 # Default: filename only → project root
 docker run -e OPENAI_API_KEY=xxx task-graph-engine

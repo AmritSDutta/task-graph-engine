@@ -179,6 +179,7 @@ class TestCreateLlm:
             "llama-3.3-70b-versatile",
             "gpt-oss:20b-cloud",
             "kimi-k2.5:cloud",
+            "glm-5:cloud",
         ],
     )
     def test_create_llm_with_all_supported_models(self, model_name):

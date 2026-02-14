@@ -285,6 +285,150 @@ class TestPromptLoadingErrors:
         assert result == "Value: "
 
 
+class TestCapabilityInferencePrompt:
+    """Comprehensive tests for the capability inference prompt."""
+
+    def test_capability_inference_task_placeholder_replaced(self):
+        """Test that {{task}} placeholder is properly replaced."""
+        prompt = get_capability_inference_prompt("Write Python code")
+        assert "{{task}}" not in prompt
+        assert "Write Python code" in prompt
+
+    def test_capability_inference_with_different_task_types(self):
+        """Test with various types of tasks."""
+        tasks = [
+            "Create a REST API with FastAPI",
+            "Explain quantum computing",
+            "Analyze this CSV data file",
+            "Generate images for the dashboard",
+        ]
+        for task in tasks:
+            prompt = get_capability_inference_prompt(task)
+            assert task in prompt
+            assert "{{task}}" not in prompt
+
+    def test_capability_inference_contains_all_capabilities(self):
+        """Test that all 11 capabilities are listed in the prompt."""
+        prompt = get_capability_inference_prompt("test")
+        expected_capabilities = [
+            "reasoning",
+            "tools",
+            "fast",
+            "cheap",
+            "informational",
+            "coding",
+            "vision",
+            "long",
+            "synthesizing",
+            "summarizing",
+            "planning",
+        ]
+        for capability in expected_capabilities:
+            assert f"- {capability}:" in prompt, f"Capability '{capability}' not found in prompt"
+
+    def test_capability_inference_has_capability_descriptions(self):
+        """Test that each capability has a description."""
+        prompt = get_capability_inference_prompt("test")
+        # Check for descriptions
+        assert "Complex reasoning, chain-of-thought" in prompt
+        assert "Function calling, tool use" in prompt
+        assert "Low cost per token" in prompt
+        assert "Image understanding, visual content" in prompt
+        assert "Long context window" in prompt
+
+    def test_capability_inference_contains_rules(self):
+        """Test that classification rules are included."""
+        prompt = get_capability_inference_prompt("test")
+        assert "Rules:" in prompt
+        assert "1." in prompt
+        assert "writing code, programming" in prompt.lower()
+        assert "facts, explanations" in prompt.lower()
+        assert "complex analysis" in prompt.lower()
+
+    def test_capability_inference_contains_example_outputs(self):
+        """Test that example outputs are provided."""
+        prompt = get_capability_inference_prompt("test")
+        assert "Example outputs:" in prompt
+        assert "-coding, reasoning, cheap" in prompt
+        assert "-informational, cheap, long" in prompt
+        assert "-summarizing, synthesizing, long" in prompt
+
+    def test_capability_inference_with_special_characters(self):
+        """Test with special characters in task description."""
+        special_tasks = [
+            "Fix bug: user_id != userID",
+            "Query: SELECT * FROM users WHERE id > 100",
+            "Issue: $500 budget exceeded",
+        ]
+        for task in special_tasks:
+            prompt = get_capability_inference_prompt(task)
+            assert task in prompt, f"Task '{task}' not found in prompt"
+
+    def test_capability_inference_with_multiline_task(self):
+        """Test with multiline task description."""
+        task = """Create a function that:
+        1. Validates input
+        2. Processes data
+        3. Returns result"""
+        prompt = get_capability_inference_prompt(task)
+        assert "Create a function that:" in prompt
+        assert "Validates input" in prompt
+        assert "{{task}}" not in prompt
+
+    def test_capability_inference_with_empty_task(self):
+        """Test with empty task string."""
+        prompt = get_capability_inference_prompt("")
+        assert "{{task}}" not in prompt
+        assert 'Task: ""' in prompt or "Task:" in prompt
+
+    def test_capability_inference_with_very_long_task(self):
+        """Test with very long task description."""
+        task = "Write a comprehensive system that " + "handles data processing " * 50
+        prompt = get_capability_inference_prompt(task)
+        assert len(prompt) > len(task)
+        assert "{{task}}" not in prompt
+
+    def test_capability_inference_task_label_present(self):
+        """Test that 'Task:' label is present before the actual task."""
+        prompt = get_capability_inference_prompt("Debug the API")
+        assert "Task:" in prompt
+        assert "Debug the API" in prompt
+
+    def test_capability_inference_preserves_newlines(self):
+        """Test that newlines in task are preserved."""
+        task = "Line 1\nLine 2\nLine 3"
+        prompt = get_capability_inference_prompt(task)
+        assert "Line 1" in prompt
+        assert "Line 2" in prompt
+        assert "Line 3" in prompt
+
+    def test_capability_inference_with_unicode_characters(self):
+        """Test with unicode characters in task."""
+        tasks = [
+            "Implementé une fonction en français",
+            "创建一个Python函数",
+            "Erstelle eine Funktion",
+        ]
+        for task in tasks:
+            prompt = get_capability_inference_prompt(task)
+            assert task in prompt
+
+    def test_capability_inference_format_consistency(self):
+        """Test that formatting is consistent across multiple calls."""
+        task1 = "Write code"
+        prompt1 = get_capability_inference_prompt(task1)
+
+        task2 = "Explain AI"
+        prompt2 = get_capability_inference_prompt(task2)
+
+        # Both should have same structure (capabilities list, rules, examples)
+        for prompt in [prompt1, prompt2]:
+            assert "Available capabilities:" in prompt
+            assert "Rules:" in prompt
+            assert "Example outputs:" in prompt
+            assert "- reasoning:" in prompt
+
+
 class TestPromptEncoding:
     """Tests for file encoding handling."""
 

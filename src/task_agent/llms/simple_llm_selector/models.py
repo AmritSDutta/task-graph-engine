@@ -152,11 +152,11 @@ MODEL_CAPABILITIES: dict[str, set[Capability]] = _load_model_capabilities_from_c
 
 # Preferred models for coding tasks (in priority order)
 CODING_MODEL_PRIORITY = [
+    "glm-5:cloud",
     "deepseek-v3.1:671b-cloud",
     "kimi-k2.5:cloud",
     "qwen3-coder:480b-cloud",
     "glm-4.6:cloud",
-    "gemini-2.5-pro",
     "gemini-2.5-flash",
 ]
 
@@ -173,3 +173,7 @@ def get_model_capabilities(model: str) -> set[Capability]:
 def get_model_cost(model: str) -> float:
     """Get cost for a model."""
     return MODEL_COST.get(model, 999.0)
+
+
+def get_active_model_names() -> set[str]:
+    return set(MODEL_CAPABILITIES.keys())

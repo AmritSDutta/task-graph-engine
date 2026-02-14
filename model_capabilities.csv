@@ -17,10 +17,11 @@ gemma-3-12b-it,False,False,True,True,True,False,True,True,True,True,False,False
 glm-4.6:cloud,True,True,False,False,True,True,False,True,True,True,False,True
 gpt-oss:20b-cloud,True,True,False,True,False,False,False,True,False,False,False,True
 kimi-k2.5:cloud,True,True,False,True,True,True,False,True,True,True,False,True
-GLM-4.5-Flash,True,True,True,True,True,False,False,False,False,False,False,True
+GLM-4.5-Flash,True,True,True,True,True,False,False,False,False,False,False,False
 GLM-4.6V-Flash,True,True,True,True,True,False,False,False,False,False,False,True
-GLM-4.7-Flash,True,True,True,True,True,False,False,False,False,False,False,False
+GLM-4.7-Flash,True,True,True,True,True,False,False,False,False,False,False,True
 llama-3.3-70b-versatile,True,True,True,False,True,True,False,True,True,True,True,True
 llama-3.1-8b-instant,False,True,True,True,True,False,False,False,True,True,False,True
 deepseek-v3.1:671b-cloud,True,True,False,True,True,True,False,True,True,True,True,True
 sarvam-m,False,False,True,True,True,False,True,True,True,True,False,True
+glm-5:cloud,True,True,False,False,True,True,False,True,True,True,True,True
