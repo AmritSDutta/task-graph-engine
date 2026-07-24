@@ -1,0 +1,6 @@
+{
+    "unsloth": {
+        "transport": "http",
+        "url": "https://unsloth.ai/docs/~gitbook/mcp"
+    }
+}
