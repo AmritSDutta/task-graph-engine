@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     )
 
     # Model Configurations
-    INFERENCE_MODEL: str = "sarvam-m"  # other option : gpt-5-nano
-    FALLBACK_MODEL: str = "gpt-5-nano"
+    INFERENCE_MODEL: str = "sarvam-30b"  # other option : gpt-5-nano
+    FALLBACK_MODEL: str = "gemini-3.1-flash-lite"
     INFERENCE_MAX_RETRY: int = 3
     MODERATION_API_CHECK_REQ: bool = True
     COST_SPREADING_FACTOR: float = 0.03

@@ -64,7 +64,7 @@ def resolve_provider(model: str) -> str:
         "glm-": "ollama",  # Must come after specific Zhipu GLM prefixes
         "llama": "ollama",
         "gemma3:27b": "ollama",
-        "sarvam-m": "sarvam",
+        "sarvam": "sarvam",
     }
 
     for prefix, provider in prefixes.items():
