@@ -152,12 +152,11 @@ MODEL_CAPABILITIES: dict[str, set[Capability]] = _load_model_capabilities_from_c
 
 # Preferred models for coding tasks (in priority order)
 CODING_MODEL_PRIORITY = [
-    "glm-5:cloud",
-    "deepseek-v3.1:671b-cloud",
+    "deepseek-v4-flash",
+    "deepseek-v4-pro:cloud",
+    "qwen3.5:397b-cloud",
     "kimi-k2.5:cloud",
-    "qwen3-coder:480b-cloud",
-    "glm-4.6:cloud",
-    "gemini-2.5-flash",
+    "gemini-3.1-flash",
 ]
 
 # Relative cost per 1M tokens (normalized, approximate)

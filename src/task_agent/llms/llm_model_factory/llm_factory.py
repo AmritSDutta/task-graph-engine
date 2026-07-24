@@ -15,9 +15,7 @@ from langchain_groq import ChatGroq
 from langchain_community.chat_models import ChatZhipuAI
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
-from sarvam import (
-      SarvamChat,
-  )
+
 
 from task_agent.config import settings
 
@@ -28,7 +26,7 @@ LLM_REGISTRY: dict[str, Type[BaseChatModel]] = {
     "groq": ChatGroq,
     "ollama": ChatOllama,
     "Zhipu": ChatZhipuAI,
-    "sarvam": SarvamChat,
+    "sarvam": ChatOpenAI,
 }
 
 
@@ -52,8 +50,8 @@ def resolve_provider(model: str) -> str:
         "chatgpt-": "openai",
         "moonshotai/": "groq",
         "gemini-": "google",
-        "gemma-3-27b-it": "google",
-        "gemma-3-12b-it": "google",
+        "gemma-4-26b-it": "google",
+        "gemma-4-31b": "google",
         "llama-3.3-70b": "groq",
         "llama-3.1-8b": "groq",
         "qwen/": "groq",
@@ -63,7 +61,7 @@ def resolve_provider(model: str) -> str:
         "GLM-4.7-Flash": "Zhipu",
         "glm-": "ollama",  # Must come after specific Zhipu GLM prefixes
         "llama": "ollama",
-        "gemma3:27b": "ollama",
+        "gemma4:31b": "ollama",
         "sarvam": "sarvam",
     }
 
@@ -99,6 +97,14 @@ def create_llm(model: str, **kwargs) -> BaseChatModel:
                 "timeout": 60.0  # Timeout in seconds
             }
         )
+    elif provider == "sarvam":
+        # for docker deployment or machine without ollama desktop installed, this should be used.
+        return ChatOpenAI(
+            model="sarvam-105b",  # or "sarvam-30b"
+            api_key=os.getenv("SARVAM_API_KEY"),
+            base_url="https://api.sarvam.ai/v1"
+        )
+
     return constructor(model=model, **kwargs)
 
 

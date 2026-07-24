@@ -218,7 +218,7 @@ cp .env.example .env
 # Start LangGraph dev server
 # Use --allow-blocking for community models (z.ai, nvidia, etc.)
 langgraph dev --allow-blocking  # Watch the magic happen
-
+infisical run  --env=dev  -- langgraph dev --allow-blocking
 ```
 
 > **Note**: Some LangChain community integrations (like `langchain-nvidia-ai-core`, `langchain-community`, `z.ai`) use synchronous HTTP calls internally. The `--allow-blocking` flag prevents LangGraph from throwing warnings about blocking calls in an async context.
