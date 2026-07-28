@@ -1,6 +1,9 @@
 # CLAUDE.md
-
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+
+Before reading multiple files or performing recursive codebase searches, always check graphify-out/GRAPH_REPORT.md 
+or run graphify query to identify relevant files first.
 
 ## Project Overview
 
